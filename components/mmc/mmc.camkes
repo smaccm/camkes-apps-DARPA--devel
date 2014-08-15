@@ -1,0 +1,25 @@
+/*
+ * Copyright 2014, NICTA
+ *
+ * This software may be distributed and modified according to the terms of
+ * the BSD 2-Clause license. Note that NO WARRANTY is provided.
+ * See "LICENSE_BSD2.txt" for details.
+ *
+ * @TAG(NICTA_BSD)
+ */
+
+import "../../interfaces/mmc.idl4"; 
+
+component mmc {
+    	control;
+    	//provides mmc_inf 	mmc;
+    	uses	 clk_inf    clk;
+    	uses 	 gpio_inf 	gpio;
+    	uses	 timer_inf  timer;
+        
+        dataport Buf 		mshc0_phy;
+      	dataport Buf 		mshc1_phy;
+        dataport Buf 		mshc2_phy;
+      	dataport Buf 		mshc3_phy;
+}
+

@@ -1,0 +1,203 @@
+/*
+ * Copyright 2014, NICTA
+ *
+ * This software may be distributed and modified according to the terms of
+ * the BSD 2-Clause license. Note that NO WARRANTY is provided.
+ * See "LICENSE_BSD2.txt" for details.
+ *
+ * @TAG(NICTA_BSD)
+ */
+
+import <std_connector.camkes>;
+
+import "components/client/client.camkes";
+import "components/canbus/canbus.camkes";
+import "components/gpio/gpio.camkes";
+import "components/clk/clk.camkes";
+import "components/spi/spi.camkes";
+import "components/can/can.camkes";
+import "components/uart/uart.camkes";
+import "components/timer/timer.camkes";
+import "components/gyro/gyro.camkes";
+
+//import "components/mmc/mmc.camkes";
+
+/* Hardware Components Declerations */
+
+//component mshcbase {
+//	hardware;
+//	dataport Buf mshc0_phy_base;
+//	dataport Buf mshc1_phy_base;
+//	dataport Buf mshc2_phy_base;
+//	dataport Buf mshc3_phy_base;
+//}
+
+
+//component clkbase {
+//    hardware;
+//    include "components/clk/include/porttype.h";
+//    dataport CLKData_t cmu_cpu_clk;
+//    dataport Buf	   cmu_core_clk;
+//    dataport CLKData_t cmu_top_clk;
+//}
+
+component gpiobase {
+    hardware;
+    dataport Buf gpio1base;
+    dataport Buf gpio2base;
+    dataport Buf irqcbase;
+    emits DataAvailable EINT14;
+}
+
+component uartbase {
+    hardware;
+    dataport Buf uart0base;
+    emits DataAvailable	interrupt;
+}
+
+component spibase {
+	hardware;
+	dataport Buf spi1_reg;
+	dataport Buf clk_reg;
+	emits DataAvailable spi1_int;
+}
+
+/*component timerbase{
+	hardware;
+	dataport Buf timer_reg;
+	emits DataAvailable timer1_init;
+} */
+
+/* ADL Routing */
+assembly {
+        composition {
+        
+                /* Add hardware component here */
+//                component clkbase   clkbase_obj;
+                component gpiobase  gpiobase_obj;
+                component uartbase  uartbase_obj;
+                component spibase   spibase_obj;
+//                component timerbase timerbase_obj;
+//                component mshcbase mshcbase_obj;
+                
+                /* Add software component here */
+//                component clk       clk_obj;
+                component client    client_obj;
+                component canbus    canbus_obj;
+                component gpio      gpio_obj;
+                component spi       spi_obj;
+                component can       can_obj;
+                component uart      uart_obj;
+		component gyro      gyro_obj;
+//               component timer	    timer_obj;
+//               component mmc	    mmc_obj;
+                /* Add driver to hardware connection here */
+                
+//                connection seL4HardwareMMIO clk_cmu_cpu_mem	(from clk_obj.cmu_cpu_clk, to clkbase_obj.cmu_cpu_clk);
+//                connection seL4HardwareMMIO clk_cmu_top_mem	(from clk_obj.cmu_top_clk, to clkbase_obj.cmu_top_clk);
+//                connection seL4HardwareMMIO clk_cmu_core_mem	(from clk_obj.cmu_core_clk, to clkbase_obj.cmu_core_clk);
+             
+                 
+    		connection seL4HardwareMMIO gpio_mem1	(from gpio_obj.gpio1base, to gpiobase_obj.gpio1base);
+    		connection seL4HardwareMMIO gpio_mem2	(from gpio_obj.gpio2base, to gpiobase_obj.gpio2base);
+    		connection seL4HardwareMMIO gpio_mem3	(from gpio_obj.irqcbase, to gpiobase_obj.irqcbase);
+    		
+    			
+//                connection seL4HardwareMMIO timer_mem	(from timer_obj.timerbase, to timerbase_obj.timer_reg);
+                
+                connection seL4HardwareMMIO uart0_mem	(from uart_obj.uart0base, to uartbase_obj.uart0base);
+
+                connection seL4HardwareMMIO spi1_mem	(from spi_obj.spi1_reg, to spibase_obj.spi1_reg);
+                connection seL4HardwareMMIO spi1_clk_mem(from spi_obj.clk_reg, to spibase_obj.clk_reg);
+                
+//                connection seL4HardwareMMIO mshc0_mem	(from mmc_obj.mshc0_phy, to mshcbase_obj.mshc0_phy_base);
+//                connection seL4HardwareMMIO mshc1_mem	(from mmc_obj.mshc1_phy, to mshcbase_obj.mshc1_phy_base);
+//                connection seL4HardwareMMIO mshc2_mem	(from mmc_obj.mshc2_phy, to mshcbase_obj.mshc2_phy_base);
+//                connection seL4HardwareMMIO mshc3_mem	(from mmc_obj.mshc3_phy, to mshcbase_obj.mshc3_phy_base);
+                
+                /* Interrupts */
+                connection seL4HardwareInterrupt uart1_irq(from uartbase_obj.interrupt, to uart_obj.interrupt);
+            	connection seL4HardwareInterrupt spi1_irq(from spibase_obj.spi1_int, to spi_obj.spi1_int);
+            	 
+                connection seL4HardwareInterrupt gpio_EINT14_irq(from gpiobase_obj.EINT14, to gpio_obj.EINT14);
+//                connection seL4HardwareInterrupt timer_1_irq	(from timerbase_obj.timer1_init, to timer_obj.timer1_init);
+               
+ 		/* Timer */
+//                connection seL4RPC timer_clk	(from timer_obj.clk, to clk_obj.clktimer);
+                
+                /* MMC */
+//                connection seL4RPC mmc_timer	(from mmc_obj.timer, to timer_obj.timer);
+//                connection seL4RPC mmc_clk		(from mmc_obj.clk, to clk_obj.clkmmc);
+//                connection seL4RPC mmc_gpio		(from mmc_obj.gpio, to gpio_obj.gpio);
+                
+                /* Client Application */
+            	connection seL4RPC client_gpio	(from client_obj.gpio, 	to gpio_obj.gpio);
+                //connection seL4RPC client_clk	(from client_obj.clk, 	to clk_obj.clk);
+                connection seL4RPC client_uart	(from client_obj.uart, 	to uart_obj.uart);
+                connection seL4RPC client_spi   (from client_obj.spi, 	to spi_obj.spi);
+                connection seL4SharedData 	client_spi_channel(from client_obj.spi_can,to spi_obj.spi1_can);
+                connection seL4SharedData 	client_spi_can(from client_obj.spi_client,to spi_obj.spi1_client);
+
+                connection seL4RPC spi_gpio	(from spi_obj.gpio, to gpio_obj.gpio);
+            	connection seL4RPC gyro_spi	(from gyro_obj.spi, 	to spi_obj.spi);
+//                connection seL4RPC client_timer (from client_obj.timer, to timer_obj.timer);
+              	
+		/* CAN Application */
+            	connection seL4RPC canbus_spi	(from canbus_obj.spi, 	to spi_obj.spi);
+                connection seL4RPC canbus_can	(from canbus_obj.can, 	to can_obj.can);
+                connection seL4RPC canbus_gpio	(from canbus_obj.gpio, 	to gpio_obj.gpio);
+              
+               	/* Can driver */
+            	connection seL4RPC 		can_spi(from can_obj.spi, to spi_obj.spi);
+                connection seL4SharedData 	can_spi_channel	(from can_obj.spi1_can,	to spi_obj.spi1_can);
+        	connection seL4RPC 		gpio_can(from gpio_obj.can, to can_obj.can);
+        	connection seL4Asynch 		gpio_can_int(from gpio_obj.CANInt, to can_obj.Int);
+        	connection seL4Asynch 		gpio_can_intAck(from can_obj.IntAck, to gpio_obj.CANIntAck);
+
+        	/* Timer Sleep/Wakeup funtions */
+//        	connection seL4Asynch		client_timer_sleep(from timer_obj.client_sleep, to client_obj.sleep);
+        		
+        		
+                /* client shared data */
+          	connection seL4SharedData canbus_spi_channel(from canbus_obj.spi1_client, to spi_obj.spi1_client);
+                connection seL4SharedData canbus_can_channel(from canbus_obj.can_buf, to can_obj.can_buf);
+                connection seL4SharedData client_uart_channel(from client_obj.uart_buf,	to uart_obj.client_buf);
+        }
+        
+        
+        /* Hardware Mpmery Mapping */
+        
+        configuration {
+        
+              gpiobase_obj.gpio2base_attributes 	= 	"0x14000000:0x1000";	//GPIO
+              gpiobase_obj.gpio1base_attributes 	= 	"0x13400000:0x1000";	//GPIO
+              gpiobase_obj.irqcbase_attributes  	=	"0x10440000:0x1000";	//IRQ COMBINER
+              gpiobase_obj.EINT14_attributes 		= 	63;			//EINT14, botton TACTA SW
+             
+              uartbase_obj.uart0base_attributes 	= 	"0x12C10000:0x1000";    //UART1
+              uartbase_obj.interrupt_attributes 	= 	84;                     //UART1 interrupt
+              
+              spibase_obj.spi1_reg_attributes 		= 	"0x12D30000:0x1000";	//SPI1
+              spibase_obj.spi1_int_attributes 		= 	101;			//SPI1  interrupt 
+              spibase_obj.clk_reg_attributes 	        = 	"0x10020000:0x1000";	//CMU_TOP
+			
+//              clkbase_obj.cmu_cpu_clk_attributes 	= 	"0x10010000:0x1000";	//CMU_CPU
+//              clkbase_obj.cmu_top_clk_attributes 	= 	"0x10020000:0x1000";	//CMU_TOP
+//              clkbase_obj.cmu_core_clk_attributes 	= 	"0x10030000:0x1000";	//CMU_CDREX
+        
+              timerbase_obj.timer_reg_attributes 	= 	"0x12DD0000:0x1000";	//PWM timers   
+              timerbase_obj.timer1_init_attributes	= 	69;			//Timer 1 interrupt
+        	  
+        	  
+        	  /* MMC & mshc */
+//        	  mshcbase_obj.mshc0_phy_base_attributes	=	"0x12200000:0x1000";	//exynos_mshc0
+//        	  mshcbase_obj.mshc1_phy_base_attributes	=	"0x12210000:0x1000";	//exynos_mshc0
+//        	  mshcbase_obj.mshc2_phy_base_attributes	=	"0x12220000:0x1000";	//exynos_mshc0
+//        	  mshcbase_obj.mshc3_phy_base_attributes	=	"0x12230000:0x1000";	//exynos_mshc0
+//        	  
+//        	  mmc_obj.dma_pool 	= 	40960;	// 10 buffers
+       	  
+        	  
+        }
+}
+

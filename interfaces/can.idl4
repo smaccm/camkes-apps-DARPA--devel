@@ -1,0 +1,33 @@
+/*
+ * Copyright 2014, NICTA
+ *
+ * This software may be distributed and modified according to the terms of
+ * the BSD 2-Clause license. Note that NO WARRANTY is provided.
+ * See "LICENSE_BSD2.txt" for details.
+ *
+ * @TAG(NICTA_BSD)
+ */
+
+procedure can_inf {
+
+	void mcp2515_handle_interrupts(void);
+	int  mcp2515_init(in int speed);
+	int  mcp2515_config_Int(in int irq, in int op);
+	void mcp2515_tx_priority(in int txb, in int x);
+	void mcp2515_abort_tx(in int txb);
+	void mcp2515_abort_all_tx(void);
+	void mcp2515_one_shot_mode(in int op);
+	void mcp2515_rxb_rollover(in int op);
+	int  mcp2515_config_baudrate(in int speed);
+	int  mcp2515_set_baudrate(in unsigned int baudrate, in unsigned int sjw, in unsigned int sam, in unsigned int sample_point_percent);
+	int  mcp2515_rxb_opMode(in int rxbuf_id, in int rxbmode);
+	int  mcp2515_send_message(in unsigned int app_id);
+	int  mcp2515_read_message(in unsigned int app_id, in unsigned int timeout);
+	int  mcp2515_check_message(void);
+	int  mcp2515_error_states(void);
+	int  mcp2515_set_FILTER_MASK(in int filtermask, in unsigned int val,in unsigned int exide);
+	int  mcp2515_rxb_filter_hit(in int rxid);
+	int  mcp2515_auto_baud_rate_detection(void);
+	int  mcp2515_error_handling(void);
+
+};
