@@ -12,15 +12,16 @@ import "../../interfaces/spi.idl4";
 import "../../interfaces/gpio.idl4"; 
 
 component spi {
-	uses     gpio_inf       gpio;
+        uses     gpio_inf       gpio;
 
-    	provides spi_inf 	spi;
-        dataport Buf 		spi1_reg;
-        dataport Buf	 	spi1_client;
-        dataport Buf	 	spi1_can;
-        consumes DataAvailable spi1_int;
+        provides spi_inf        spi;
+        dataport Buf            spi1_reg;
+        dataport Buf            spi1_client;
+        dataport Buf            spi1_can;
+        consumes DataAvailable  spi1_int;
 
-	dataport Buf            clk_reg;  //Clock setting.
-	//control;
+        dataport Buf            clk_reg;  //Clock setting.
+
+        has semaphore           bus_sem;
 }
 

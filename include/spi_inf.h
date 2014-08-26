@@ -16,12 +16,14 @@
 #define SPI_INF_H
 
 #include <stdbool.h>
+#include <stdint.h>
 
-#define SPI_TRANS_MAX_SIZE	255
+#define SPI_TRANS_MAX_SIZE    255
+
 typedef struct spi_buf_t{
-	uint8_t txbuf[SPI_TRANS_MAX_SIZE];
-	uint8_t rxbuf[SPI_TRANS_MAX_SIZE];
-	volatile bool lock;					//shared buffer lock
+    uint8_t txbuf[SPI_TRANS_MAX_SIZE];
+    uint8_t rxbuf[SPI_TRANS_MAX_SIZE];
+    volatile bool lock;                    //shared buffer lock
 }spi_dev_port, *spi_dev_port_p;
 
 

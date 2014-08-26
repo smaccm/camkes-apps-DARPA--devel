@@ -10,11 +10,6 @@
 
 
 procedure spi_inf {
-	int register_slave(in smallstring name, in int peripheral);
-	int unregister_slave(in int id);
-	//int  write(in unsigned int id, in unsigned int count);
-	int  transfer(in unsigned int id, in unsigned int wcount, in unsigned int rcount);
+	int transfer(in int id, in unsigned int wcount, in unsigned int rcount);
 	int transfer_byte(in int id, in char byte);
-	void chip_select(in int id);
-	void chip_unselect(in int id);
 };
