@@ -38,25 +38,15 @@
 static int read_register(int address)
 {
 	int ret = 0;
-
-	spi_chip_select(PERIPH_ID_GYRO);
-
 	ret = spi_transfer_byte(PERIPH_ID_GYRO, READ_MASK | address);
 	spi_transfer_byte(PERIPH_ID_GYRO, 0x00);
-
-	spi_chip_unselect(PERIPH_ID_GYRO);
-
 	return ret;
 }
 
 static void write_register(int address, unsigned char value)
 {
-	spi_chip_select(PERIPH_ID_GYRO);
-
 	spi_transfer_byte(PERIPH_ID_GYRO, WRITE_MASK | address);
 	spi_transfer_byte(PERIPH_ID_GYRO, value);
-
-	spi_chip_unselect(PERIPH_ID_GYRO);
 }
 
 static int begin(void)
@@ -106,8 +96,6 @@ int run(void)
 
 	printf("Start Gyro...\n");
 
-	spi_register_slave("Gyro", PERIPH_ID_GYRO);
-
 	ret = begin();
 
 	if (ret != WHO_AM_I) {
@@ -118,7 +106,6 @@ int run(void)
 	
 	printf("X(%d), Y(%d), Z(%d)\n", read_axis(0), read_axis(1), read_axis(2));
 
-	spi_unregister_slave(PERIPH_ID_GYRO);
 	return 0;
 }
 

@@ -164,26 +164,10 @@ void can__init(void) {
 	rx_queue.valids = 0;
 }
 
-void mcp2515_spi_select(void){
-	spi_chip_select(0);
-	//provide 1us CS setup time < 50ns
-	udelay(1);
-}
-
-void mcp2515_spi_unselect(void){
-	spi_chip_unselect(0);
-	//provide 1us CS Disable time, > 50ns
-	udelay(1);
-}
-
 int mcp2515_spi_transfer(spi_dev_port* dev, int wcount, int rcount){
 	(void) dev;
 	int ret = 0;
-	_acquire_spin_lock(&(spi_lock));
-	mcp2515_spi_select();
 	ret = spi_transfer(CAN_APP_ID, wcount, rcount);
-	mcp2515_spi_unselect();
-	_release_spin_lock(&(spi_lock));
 	return ret;
 }
 
