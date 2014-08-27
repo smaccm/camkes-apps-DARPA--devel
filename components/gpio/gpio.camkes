@@ -21,5 +21,10 @@ component gpio {
         consumes DataAvailable 	EINT14;
         emits	 IntEvent	CANInt;
         consumes IntEventAck	CANIntAck;
+
+        consumes IRQGroup26       irq_grp26_int;
+        consumes IRQGroup28       irq_grp28_int;
+        consumes IRQGroup31       irq_grp31_int;
+        consumes EXINT16_31       xint16_31_int;
 }
 

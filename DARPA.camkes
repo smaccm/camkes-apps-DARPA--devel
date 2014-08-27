@@ -46,7 +46,10 @@ component gpiobase {
     dataport Buf gpio1base;
     dataport Buf gpio2base;
     dataport Buf irqcbase;
-    emits DataAvailable EINT14;
+    emits IRQGroup26       irq_grp26_int;
+    emits IRQGroup28       irq_grp28_int;
+    emits IRQGroup31       irq_grp31_int;
+    emits EXINT16_31       xint16_31_int;
 }
 
 component uartbase {
@@ -115,9 +118,11 @@ assembly {
                 
                 /* Interrupts */
                 connection seL4HardwareInterrupt uart1_irq(from uartbase_obj.interrupt, to uart_obj.interrupt);
-            	connection seL4HardwareInterrupt spi1_irq(from spibase_obj.spi1_int, to spi_obj.spi1_int);
-            	 
-                connection seL4HardwareInterrupt gpio_EINT14_irq(from gpiobase_obj.EINT14, to gpio_obj.EINT14);
+                connection seL4HardwareInterrupt spi1_irq(from spibase_obj.spi1_int, to spi_obj.spi1_int);
+                connection seL4HardwareInterrupt gpio_grp28_irq(from gpiobase_obj.irq_grp28_int, to gpio_obj.irq_grp28_int);
+                connection seL4HardwareInterrupt gpio_grp26_irq(from gpiobase_obj.irq_grp26_int, to gpio_obj.irq_grp26_int);
+                connection seL4HardwareInterrupt gpio_grp31_irq(from gpiobase_obj.irq_grp31_int, to gpio_obj.irq_grp31_int);
+                connection seL4HardwareInterrupt gpio_xint16_31_irq(from gpiobase_obj.xint16_31_int, to gpio_obj.xint16_31_int);
 //                connection seL4HardwareInterrupt timer_1_irq	(from timerbase_obj.timer1_init, to timer_obj.timer1_init);
                
  		/* Timer */
@@ -171,7 +176,10 @@ assembly {
               gpiobase_obj.gpio2base_attributes 	= 	"0x14000000:0x1000";	//GPIO
               gpiobase_obj.gpio1base_attributes 	= 	"0x13400000:0x1000";	//GPIO
               gpiobase_obj.irqcbase_attributes  	=	"0x10440000:0x1000";	//IRQ COMBINER
-              gpiobase_obj.EINT14_attributes 		= 	63;			//EINT14, botton TACTA SW
+              gpiobase_obj.irq_grp26_int_attributes     =       58;                     //Combined IRQ group 26
+              gpiobase_obj.irq_grp28_int_attributes     =       60;                     //Combined IRQ group 28
+              gpiobase_obj.irq_grp31_int_attributes     =       63;                     //Combined IRQ group 31
+              gpiobase_obj.xint16_31_int_attributes     =       64;                     //Extern Interrupt EINT16-EINT31
              
               uartbase_obj.uart0base_attributes 	= 	"0x12C10000:0x1000";    //UART1
               uartbase_obj.interrupt_attributes 	= 	84;                     //UART1 interrupt
