@@ -41,6 +41,7 @@
 /*
  * CAmkES headers
  */
+#include "clk.h"
 
 #include <stdint.h>
 #include <stdlib.h>
@@ -48,7 +49,6 @@
 #include <string.h>
 #include <assert.h>
 
-#include "clk.h"
 
 #include "exynos_config.h"
 #include "exynos_clk.h"
@@ -63,6 +63,7 @@ struct exynos5_clk_cmu_top	*	cmu_top_clk_reg; //0x10020000...
 struct exynos5_clk_cmu_core *	cmu_core_clk_reg;//0x10030000...
 
 
+#if 0
 
 /* Epll Clock division values to achive different frequency output */
 static struct set_epll_con_val exynos5_epll_div[] = {
@@ -329,13 +330,13 @@ static void wait_for_init(void){
 		;
 	}
 }
-
-void clk__init(void){
+#endif
+void clktree__init(void){
 
 	cmu_cpu_clk_reg  = (struct exynos5_clk_cmu_cpu	*) cmu_cpu_clk;
 	cmu_top_clk_reg  = (struct exynos5_clk_cmu_top	*) cmu_top_clk;
 	cmu_core_clk_reg = (struct exynos5_clk_cmu_core	*) cmu_core_clk;
-
+#if 0
 	writel(CLK_DIV_PERIC3_VAL, &cmu_top_clk_reg->div_peric3);
 
 	CLK_HAS_INIT = 1;
@@ -357,11 +358,11 @@ void clk__init(void){
 	printf("SPI1 rate: %ld MHz\n",exynos5_get_periph_rate(PERIPH_ID_SPI1)/1000000);
 	//
 	printf("PWM0 rate: %ld MHz\n",exynos5_get_periph_rate(PERIPH_ID_PWM0)/1000000);
-//#endif
+#endif
 
 }
 
-
+#if 0
 unsigned long clock_get_periph_rate(int peripheral)
 {
 	return exynos5_get_periph_rate(peripheral);
@@ -387,10 +388,43 @@ void set_lcd_clk(void)
 {
 	exynos5_set_lcd_clk();
 }
-
-int set_spi_clk(int periph_id, unsigned int rate)
+#endif
+static int set_spi_clock(int periph_id, unsigned long rate)
 {
-	return exynos5_set_spi_clk(periph_id, rate);
+#define CLK_SRC_PERIC1       0x254
+#define CLK_SRC_MASK_PERIC1  0x354
+#define CLK_DIV_PERIC1       0x55C
+#define CLK_DIV_STAT_PERIC1  0x65C
+#define CLK_GATE_IP_PERIC    0x950
+    unsigned char *base = (unsigned char*)cmu_top_clk_reg;
+
+	/*
+	 * FIXME: Set the clock to an appropriate freq.
+	 * Freq: Min. 0xFFFF0000
+	 *       Max. 0x1AF00000 (Max. of MCP2515 CAN controller)
+	 */
+     printf("clk base: 0x%x\n", (uint32_t)base);
+	writel(0xFFFF0000, base + CLK_DIV_PERIC1);
+//	printf("CLK: %s: %x, %x, %x, %x, %x\n", __func__,
+//		readl(base + CLK_SRC_PERIC1),
+//		readl(base + CLK_SRC_MASK_PERIC1),
+//		readl(base + CLK_DIV_PERIC1),
+//		readl(base + CLK_DIV_STAT_PERIC1),
+//		readl(base + CLK_GATE_IP_PERIC));
+    return rate;
+}
+
+unsigned int clktree_get_spi1_freq(void){
+    return 0;
+}
+
+
+unsigned int clktree_set_spi1_freq(unsigned int rate){
+    set_spi_clock(0, rate); 
+}
+
+#if 0
+//	return exynos5_set_spi_clk(periph_id, rate);
 }
 
 int set_i2s_clk_prescaler(unsigned int src_frq, unsigned int dst_frq)
@@ -1056,6 +1090,8 @@ void system_clock_init(void)
 	mem = clock_get_mem_timings();
 	arm_clk_ratio = get_arm_ratios();
 
+#if 0
+
 	/* Deselect all PLL clock source *
 	 * MUX_APLL, MUX_MPLL, MUX_BPLL
 	 * MUX_GPLL, MUX_VPLL, MUX_CPLL,
@@ -1068,9 +1104,9 @@ void system_clock_init(void)
 		val = readl(&cmu_cpu_clk_reg->mux_stat_cpu);
 	} while ((val | MUX_APLL_SEL_MASK) != val);
 
-	/*	printf("2, accessing %x\n",&cmu_cpu_clk_reg->src_core1);
+	*//*	printf("2, accessing %x\n",&cmu_cpu_clk_reg->src_core1);
 
-	/* MUX_MPLL */
+	*//* MUX_MPLL */
 	//clrbits_le32(&cmu_cpu_clk_reg->src_core1, MUX_MPLL_SEL_MASK);
 /*	printf("running\n");
 	do {
@@ -1081,9 +1117,9 @@ void system_clock_init(void)
 	printf("3\n");
 	/* MUX_CPLL */
 	/*	clrbits_le32(&cmu_top_clk_reg->src_top2, MUX_CPLL_SEL_MASK);
-	/* MUX_EPLL */
+	*//* MUX_EPLL */
 	/*	clrbits_le32(&cmu_top_clk_reg->src_top2, MUX_EPLL_SEL_MASK);
-	/* MUX_VPLL */
+	*//* MUX_VPLL */
 	/*	clrbits_le32(&cmu_top_clk_reg->src_top2, MUX_VPLL_SEL_MASK);
 	/* MUX_GPLL */
 	/*	clrbits_le32(&cmu_top_clk_reg->src_top2, MUX_GPLL_SEL_MASK);
@@ -1221,10 +1257,12 @@ void system_clock_init(void)
 	while (readl(&cmu_cpu_clk_reg->div_stat_syslft) != 0)
 		;
 
+
 	/* ==================
 	 * TOP Mutex
 	 * ==================*/
 	/* update mutexes in CMU_TOP region */
+#endif
 	writel(CLK_SRC_TOP0_VAL, 	&cmu_top_clk_reg->src_top0);
 	writel(CLK_SRC_TOP1_VAL, 	&cmu_top_clk_reg->src_top1);
 	writel(TOP2_VAL, 			&cmu_top_clk_reg->src_top2);
@@ -1590,4 +1628,4 @@ unsigned long get_uart_clk(int dev_index)
 }
 
 
-
+#endif

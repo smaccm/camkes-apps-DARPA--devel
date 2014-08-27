@@ -33,13 +33,13 @@ import "components/gyro/gyro.camkes";
 //}
 
 
-//component clkbase {
-//    hardware;
-//    include "components/clk/include/porttype.h";
-//    dataport CLKData_t cmu_cpu_clk;
-//    dataport Buf	   cmu_core_clk;
-//    dataport CLKData_t cmu_top_clk;
-//}
+component clkbase {
+    hardware;
+    include "components/clk/include/porttype.h";
+    dataport CLKData_t cmu_cpu_clk;
+    dataport Buf	   cmu_core_clk;
+    dataport CLKData_t cmu_top_clk;
+}
 
 component gpiobase {
     hardware;
@@ -58,7 +58,6 @@ component uartbase {
 component spibase {
 	hardware;
 	dataport Buf spi1_reg;
-	dataport Buf clk_reg;
 	emits DataAvailable spi1_int;
 }
 
@@ -73,7 +72,7 @@ assembly {
         composition {
         
                 /* Add hardware component here */
-//                component clkbase   clkbase_obj;
+                component clkbase   clkbase_obj;
                 component gpiobase  gpiobase_obj;
                 component uartbase  uartbase_obj;
                 component spibase   spibase_obj;
@@ -81,7 +80,7 @@ assembly {
 //                component mshcbase mshcbase_obj;
                 
                 /* Add software component here */
-//                component clk       clk_obj;
+                component clk       clk_obj;
                 component client    client_obj;
                 component canbus    canbus_obj;
                 component gpio      gpio_obj;
@@ -93,9 +92,9 @@ assembly {
 //               component mmc	    mmc_obj;
                 /* Add driver to hardware connection here */
                 
-//                connection seL4HardwareMMIO clk_cmu_cpu_mem	(from clk_obj.cmu_cpu_clk, to clkbase_obj.cmu_cpu_clk);
-//                connection seL4HardwareMMIO clk_cmu_top_mem	(from clk_obj.cmu_top_clk, to clkbase_obj.cmu_top_clk);
-//                connection seL4HardwareMMIO clk_cmu_core_mem	(from clk_obj.cmu_core_clk, to clkbase_obj.cmu_core_clk);
+                connection seL4HardwareMMIO clk_cmu_cpu_mem	(from clk_obj.cmu_cpu_clk, to clkbase_obj.cmu_cpu_clk);
+                connection seL4HardwareMMIO clk_cmu_top_mem	(from clk_obj.cmu_top_clk, to clkbase_obj.cmu_top_clk);
+                connection seL4HardwareMMIO clk_cmu_core_mem	(from clk_obj.cmu_core_clk, to clkbase_obj.cmu_core_clk);
              
                  
     		connection seL4HardwareMMIO gpio_mem1	(from gpio_obj.gpio1base, to gpiobase_obj.gpio1base);
@@ -108,7 +107,6 @@ assembly {
                 connection seL4HardwareMMIO uart0_mem	(from uart_obj.uart0base, to uartbase_obj.uart0base);
 
                 connection seL4HardwareMMIO spi1_mem	(from spi_obj.spi1_reg, to spibase_obj.spi1_reg);
-                connection seL4HardwareMMIO spi1_clk_mem(from spi_obj.clk_reg, to spibase_obj.clk_reg);
                 
 //                connection seL4HardwareMMIO mshc0_mem	(from mmc_obj.mshc0_phy, to mshcbase_obj.mshc0_phy_base);
 //                connection seL4HardwareMMIO mshc1_mem	(from mmc_obj.mshc1_phy, to mshcbase_obj.mshc1_phy_base);
@@ -123,7 +121,7 @@ assembly {
 //                connection seL4HardwareInterrupt timer_1_irq	(from timerbase_obj.timer1_init, to timer_obj.timer1_init);
                
  		/* Timer */
-//                connection seL4RPC timer_clk	(from timer_obj.clk, to clk_obj.clktimer);
+//                connection seL4RPC timer_clk	(from timer_obj.clk, to clk_obj.clk);
                 
                 /* MMC */
 //                connection seL4RPC mmc_timer	(from mmc_obj.timer, to timer_obj.timer);
@@ -139,6 +137,7 @@ assembly {
                 connection seL4SharedData 	client_spi_can(from client_obj.spi_client,to spi_obj.spi1_client);
 
                 connection seL4RPC spi_gpio	(from spi_obj.gpio, to gpio_obj.gpio);
+                connection seL4RPC spi_clk	(from spi_obj.clktree, to clk_obj.clktree);
             	connection seL4RPC gyro_spi	(from gyro_obj.spi, 	to spi_obj.spi);
 //                connection seL4RPC client_timer (from client_obj.timer, to timer_obj.timer);
               	
@@ -165,7 +164,7 @@ assembly {
         }
         
         
-        /* Hardware Mpmery Mapping */
+        /* Hardware Memory Mapping */
         
         configuration {
         
@@ -179,11 +178,10 @@ assembly {
               
               spibase_obj.spi1_reg_attributes 		= 	"0x12D30000:0x1000";	//SPI1
               spibase_obj.spi1_int_attributes 		= 	101;			//SPI1  interrupt 
-              spibase_obj.clk_reg_attributes 	        = 	"0x10020000:0x1000";	//CMU_TOP
 			
-//              clkbase_obj.cmu_cpu_clk_attributes 	= 	"0x10010000:0x1000";	//CMU_CPU
-//              clkbase_obj.cmu_top_clk_attributes 	= 	"0x10020000:0x1000";	//CMU_TOP
-//              clkbase_obj.cmu_core_clk_attributes 	= 	"0x10030000:0x1000";	//CMU_CDREX
+              clkbase_obj.cmu_cpu_clk_attributes 	= 	"0x10010000:0x1000";	//CMU_CPU
+              clkbase_obj.cmu_top_clk_attributes 	= 	"0x10020000:0x1000";	//CMU_TOP
+              clkbase_obj.cmu_core_clk_attributes 	= 	"0x10030000:0x1000";	//CMU_CDREX
         
               timerbase_obj.timer_reg_attributes 	= 	"0x12DD0000:0x1000";	//PWM timers   
               timerbase_obj.timer1_init_attributes	= 	69;			//Timer 1 interrupt
