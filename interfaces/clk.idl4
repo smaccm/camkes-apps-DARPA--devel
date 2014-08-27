@@ -9,10 +9,7 @@
  */
 
 procedure clk_inf {
-
-	int get_pwm_freq(in int id);
-	int get_mmc(in int dev_index);
-	void set_mmc(in int dev_index, in unsigned int div);
-	
+        unsigned int set_spi1_freq(in unsigned int hz);
+        unsigned int get_spi1_freq(void);
 };
 
