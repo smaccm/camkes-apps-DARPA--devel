@@ -32,6 +32,7 @@
 #define BARO_CS     XEINT10
 #define SPI_EXT_CS  XEINT13
 #define SPI_EXT_INT XEINT19
+#define PPM_GPIO    XEINT5
 #define LIDAR_INT   UART0_CTSN
 
 #define CAN_EINT_CIRQ      XEINT15_CIRQ
@@ -43,6 +44,9 @@
 #define MAG_EINT_IRQ       64
 #define GYRO_EINT_IRQ      64
 #define SPI_EXT_EINT_IRQ   64
+
+#define PPM_IRQ            58
+#define PPM_CIRQ           XEINT5_CIRQ
 
 //#define LIDAR_EINT_IRQ_CIRQ
 
@@ -88,6 +92,18 @@ gpio_t i_lidar_int;
 /* CAN reset */
 gpio_t o_can_resetn;
 
+/* PPM Input */
+gpio_t i_ppm;
+
+static void
+irq_grp26_event(void* arg){
+    if(gpio_is_pending(&i_ppm)){
+        gpio_pending_clear(&i_ppm);
+        printf("               <<PPM INT>>\n");
+        /* TODO: Call handler */
+    }
+    irq_grp26_int_reg_callback(&irq_grp26_event, NULL);
+}
 
 static void
 irq_grp28_event(void * arg){
@@ -111,6 +127,7 @@ irq_grp31_event(void *arg){
 
 static void
 irq_xint16_31_event(void *arg){
+#if 0
     if(gpio_is_pending(&i_spi_acc_int)){
         gpio_pending_clear(&i_spi_acc_int);
         printf("               <<ACC INT>>\n");
@@ -126,6 +143,7 @@ irq_xint16_31_event(void *arg){
         printf("               <<GYRO INT>>\n");
         /* TODO: Call handler */
     }
+#endif
     if(gpio_is_pending(&i_spi_ext_int)){
         gpio_pending_clear(&i_spi_ext_int);
         printf("               <<SPI EXT INT>>\n");
@@ -162,9 +180,9 @@ void gpio__init(void) {
     /* SPI private IRQ */
     gpio_new(&gpio_sys, CAN_INTn,    GPIO_DIR_IRQ_FALL, &i_spi_can_int);
     gpio_new(&gpio_sys, MPU_INT,     GPIO_DIR_IRQ_FALL, &i_spi_mpu_int);
-    gpio_new(&gpio_sys, ACC_INT,     GPIO_DIR_IRQ_FALL, &i_spi_acc_int);
-    gpio_new(&gpio_sys, MAG_INT,     GPIO_DIR_IRQ_FALL, &i_spi_mag_int);
-    gpio_new(&gpio_sys, GYRO_INT,    GPIO_DIR_IRQ_FALL, &i_spi_gyro_int);
+    //gpio_new(&gpio_sys, ACC_INT,     GPIO_DIR_IRQ_FALL, &i_spi_acc_int);
+    //gpio_new(&gpio_sys, MAG_INT,     GPIO_DIR_IRQ_FALL, &i_spi_mag_int);
+    //gpio_new(&gpio_sys, GYRO_INT,    GPIO_DIR_IRQ_FALL, &i_spi_gyro_int);
     gpio_new(&gpio_sys, SPI_EXT_INT, GPIO_DIR_IRQ_FALL, &i_spi_ext_int);
 
     /* LIDAR sync IRQ  */
@@ -174,12 +192,17 @@ void gpio__init(void) {
     gpio_new(&gpio_sys, CAN_RESETn,  GPIO_DIR_OUT,      &o_can_resetn);
     gpio_set(&o_can_resetn);
 
+    /* PPM */
+    gpio_new(&gpio_sys, PPM_GPIO,    GPIO_DIR_IRQ_FALL, &i_ppm);
+
     /* Configure IRQs that appear on the combiner */
     irq_combiner_enable_irq(&irq_combiner, CAN_EINT_CIRQ);
     irq_combiner_enable_irq(&irq_combiner, MPU_EINT_CIRQ);
+    irq_combiner_enable_irq(&irq_combiner, PPM_CIRQ);
+    xint16_31_int_reg_callback(&irq_xint16_31_event, NULL);
     irq_grp28_int_reg_callback(&irq_grp28_event, NULL);
     irq_grp31_int_reg_callback(&irq_grp31_event, NULL);
-    xint16_31_int_reg_callback(&irq_xint16_31_event, NULL);
+    irq_grp26_int_reg_callback(&irq_grp26_event, NULL);
 }
 
 int gpio_mmc_config(int peripheral, int flags)
