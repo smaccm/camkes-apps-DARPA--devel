@@ -75,7 +75,7 @@ static mcp2515_regs local;
  * ------------------------ */
 
 //shared buffer
-extern spi_dev_port_p 	mcp2515_spi_dev;	//ptr to SPI buffer
+static spi_dev_port 	*spi_dev;	//ptr to SPI buffer
 CAN_data_ptr	msg;				//ptr to application buffer
 
 
@@ -150,7 +150,7 @@ remove_msg_from_queue(circ_buf* buf, CAN_msg * out)
 
 void can__init(void) {
 	spi_lock = 0;
-	mcp2515_spi_dev = (spi_dev_port_p) spi1_can;
+	spi_dev = (spi_dev_port*)spi_can;
 	msg = (CAN_data_ptr) can_buf;
 	local.state = NOT_INITIALISED;
 	tx_queue.head = 0;
@@ -173,21 +173,21 @@ int mcp2515_spi_transfer(spi_dev_port* dev, int wcount, int rcount){
 
 void _mcp2515_rts(int txb_id){
 
-	_acquire_spin_lock(&(mcp2515_spi_dev->lock));
+	_acquire_spin_lock(&(spi_dev->lock));
 
 	if(txb_id == TXB0ID) txb_id = 1;
-    mcp2515_spi_dev->txbuf[0] = MCP_RTS|(txb_id);
+    spi_dev->txbuf[0] = CMD_RTS|(txb_id);
 
-    mcp2515_spi_transfer(mcp2515_spi_dev, 1,0);
+    mcp2515_spi_transfer(spi_dev, 1,0);
 
-	_release_spin_lock(&(mcp2515_spi_dev->lock));
+	_release_spin_lock(&(spi_dev->lock));
 
 }
 
 
 int mcp2515_check_free_buffer(void)
 {
-  int status = _mcp2515_read_status();
+  int status = mcp2515_read_status();
   if ((status & 0x54) == 0x54)
   {
 	// all buffers used
@@ -202,20 +202,20 @@ int mcp2515_check_free_buffer(void)
 int _mcp2515_get_opMode(void){
 	int mode = 0;
 	//read the mode from CANCTRL
-	mode = _mcp2515_read_reg(CANSTAT, 1);
+	mode = mcp2515_read_reg(CANSTAT, 1);
 	return (CAN_EXT_VAL(mode,OPMOD));
 }
 
 void _mcp2515_set_opMode(REQOP_MODE mode){
 	//REQOP = 0:0:0 (Set Normal Operation mode)
 	CAN_INST_VAL(local.canctrl,REQOP,mode);
-	_mcp2515_bit_modify(CANCTRL, 0xE0, local.canctrl);
+	mcp2515_bit_modify(CANCTRL, 0xE0, local.canctrl);
 }
 
 
 int can_mcp2515_check_message(void){
   int temp;
-  temp = _mcp2515_read_reg(CANINTF, 1);
+  temp = mcp2515_read_reg(CANINTF, 1);
   // Verify RX0,RX1 Frame Receive
   return (temp & (CAN_RX0IF_MASK|CAN_RX1IF_MASK));
 }
@@ -256,24 +256,24 @@ void _mcp2515_load_tx_buffer(int txb_id, CAN_msg * message){
 		// set message length
 		CAN_INST_VAL(dlc, DLC, message->length);
 		// copy in data
-		memcpy(&(mcp2515_spi_dev->txbuf[6]), message->data, message->length);
+		memcpy(&(spi_dev->txbuf[6]), message->data, message->length);
 		//set SPI tx buffer length
 		buf_len = 6 + message->length;
 	}
 
 
 	//store in tx buffers
-	_acquire_spin_lock(&(mcp2515_spi_dev->lock));
+	_acquire_spin_lock(&(spi_dev->lock));
 
-	mcp2515_spi_dev->txbuf[0] = MCP_LOAD_TX_BUFFER | txb_id;
-	mcp2515_spi_dev->txbuf[1] = sidh;
-	mcp2515_spi_dev->txbuf[2] = sidl;
-	mcp2515_spi_dev->txbuf[3] = eid8;
-	mcp2515_spi_dev->txbuf[4] = eid0;
-	mcp2515_spi_dev->txbuf[5] = dlc;
-    mcp2515_spi_transfer(mcp2515_spi_dev, buf_len, 0);
+	spi_dev->txbuf[0] = CMD_LOAD_TXB | txb_id;
+	spi_dev->txbuf[1] = sidh;
+	spi_dev->txbuf[2] = sidl;
+	spi_dev->txbuf[3] = eid8;
+	spi_dev->txbuf[4] = eid0;
+	spi_dev->txbuf[5] = dlc;
+    mcp2515_spi_transfer(spi_dev, buf_len, 0);
 
-	_release_spin_lock(&(mcp2515_spi_dev->lock));
+	_release_spin_lock(&(spi_dev->lock));
 
 }
 
@@ -285,15 +285,15 @@ int _mcp2515_read_rx_buffer(uint8_t rxb_id, CAN_msg * message, uint8_t rx_status
 
 	memset(buf, 0, MAX_CAN_MSG_SIZE);
 
-	_acquire_spin_lock(&(mcp2515_spi_dev->lock));
+	_acquire_spin_lock(&(spi_dev->lock));
 
-	mcp2515_spi_dev->txbuf[0] = (MCP_READ_RX_BUFFER | rxb_id);
+	spi_dev->txbuf[0] = (CMD_READ_RXB | rxb_id);
 
-	mcp2515_spi_transfer(mcp2515_spi_dev, 1, MAX_CAN_MSG_SIZE);
+	mcp2515_spi_transfer(spi_dev, 1, MAX_CAN_MSG_SIZE);
 
-	memcpy(buf, &(mcp2515_spi_dev->rxbuf[1]), MAX_CAN_MSG_SIZE);
+	memcpy(buf, &(spi_dev->rxbuf[1]), MAX_CAN_MSG_SIZE);
 
-	_release_spin_lock(&(mcp2515_spi_dev->lock));
+	_release_spin_lock(&(spi_dev->lock));
 
 
 	memset(message, 0, sizeof(CAN_msg));
@@ -408,7 +408,7 @@ int can_mcp2515_send_message (unsigned int app_id){
 	}
 //	printf("CAN send: sending\n");
 	//Performs send
-	status = _mcp2515_read_status();
+	status = mcp2515_read_status();
 	//determine which buffer we should use
 	if (!CAN_EXT_VAL(status, TXB0CNTRL_TXREQ)){
 		txbuf_id = TXB0ID;
@@ -509,7 +509,7 @@ int can_mcp2515_read_message(unsigned int app_id, unsigned int timeout){
 
 		_acquire_spin_lock(&(local.can_lock));
 		//Performs read
-		status = _mcp2515_rx_status();
+		status = mcp2515_rx_status();
 
 		switch(CAN_EXT_VAL(status, RECEIVED_MSG)){
 		case NO_RX_MSG:
@@ -526,9 +526,9 @@ int can_mcp2515_read_message(unsigned int app_id, unsigned int timeout){
 		error = _mcp2515_read_rx_buffer(addr,message,status);
 		// clear interrupt flag
 		if (addr == 0){
-			_mcp2515_bit_modify(CANINTF, CAN_RX0IF_MASK, 0);
+			mcp2515_bit_modify(CANINTF, CAN_RX0IF_MASK, 0);
 		}else{
-			_mcp2515_bit_modify(CANINTF, CAN_RX1IF_MASK, 0);
+			mcp2515_bit_modify(CANINTF, CAN_RX1IF_MASK, 0);
 		}
 		_release_spin_lock(&(local.can_lock));
 	}
@@ -540,13 +540,13 @@ int can_mcp2515_read_message(unsigned int app_id, unsigned int timeout){
 void can_mcp2515_tx_priority(int txb, int x){
 	switch(txb){
 	case TXB0ID:	CAN_INST_VAL(local.txb0ctrl, TXP, x);
-			_mcp2515_write_reg(TXBnCTRL(0),local.txb0ctrl);
+			mcp2515_write_reg(TXBnCTRL(0),local.txb0ctrl);
 		break;
 	case TXB1ID:	CAN_INST_VAL(local.txb1ctrl, TXP, x);
-			_mcp2515_write_reg(TXBnCTRL(1),local.txb1ctrl);
+			mcp2515_write_reg(TXBnCTRL(1),local.txb1ctrl);
 		break;
 	case TXB2ID: CAN_INST_VAL(local.txb2ctrl, TXP, x);
-			_mcp2515_write_reg(TXBnCTRL(2),local.txb2ctrl);
+			mcp2515_write_reg(TXBnCTRL(2),local.txb2ctrl);
 	}
 }
 
@@ -554,19 +554,19 @@ void can_mcp2515_tx_priority(int txb, int x){
 void can_mcp2515_abort_tx(int txb){
 	switch(txb){
 	case TXB0ID:	CAN_INST_VAL(local.txb0ctrl, TXREQ, 0);
-			_mcp2515_write_reg(TXBnCTRL(0),local.txb0ctrl);
+			mcp2515_write_reg(TXBnCTRL(0),local.txb0ctrl);
 		break;
 	case TXB1ID:	CAN_INST_VAL(local.txb1ctrl, TXREQ, 0);
-			_mcp2515_write_reg(TXBnCTRL(1),local.txb1ctrl);
+			mcp2515_write_reg(TXBnCTRL(1),local.txb1ctrl);
 		break;
 	case TXB2ID: CAN_INST_VAL(local.txb2ctrl, TXREQ, 0);
-			_mcp2515_write_reg(TXBnCTRL(2),local.txb2ctrl);
+			mcp2515_write_reg(TXBnCTRL(2),local.txb2ctrl);
 	}
 }
 
 void can_mcp2515_abort_all_tx(void){
 	CAN_INST_VAL(local.canctrl, ABAT, 1);
-	_mcp2515_write_reg(CANCTRL,local.canctrl);
+	mcp2515_write_reg(CANCTRL,local.canctrl);
 }
 
 /*
@@ -577,7 +577,7 @@ void can_mcp2515_abort_all_tx(void){
  */
 void can_mcp2515_one_shot_mode(int op){
 	CAN_INST_VAL(local.canctrl,OSM,op);
-	_mcp2515_bit_modify(CANCTRL, CAN_OSM_MASK, local.canctrl);
+	mcp2515_bit_modify(CANCTRL, CAN_OSM_MASK, local.canctrl);
 }
 
 
@@ -586,8 +586,8 @@ void can_mcp2515_one_shot_mode(int op){
  * This function can be used to determine:
  */
 int can_mcp2515_error_states(void){
-	local.rec = _mcp2515_read_reg(REC,1);
-	local.tec = _mcp2515_read_reg(TEC,1);
+	local.rec = mcp2515_read_reg(REC,1);
+	local.tec = mcp2515_read_reg(TEC,1);
 	if(local.rec < ERROR_PASSIVE_LIMIT && local.tec < ERROR_PASSIVE_LIMIT){
 		return ERR_ACTIVE;
 	}
@@ -614,12 +614,12 @@ int can_mcp2515_rxb_opMode(int rxbuf_id, int rxbmode){
 	case RXB0ID:
 		// Buffer 0
 		CAN_INST_VAL(local.rxb0ctrl, RXM, rxbmode);
-		_mcp2515_write_reg(RXB0CTRL,local.rxb0ctrl);
+		mcp2515_write_reg(RXB0CTRL,local.rxb0ctrl);
 		break;
 	case RXB1ID:
 		// Buffer 1
 		CAN_INST_VAL(local.rxb1ctrl, RXM, rxbmode);
-		_mcp2515_write_reg(RXB1CTRL,local.rxb0ctrl);
+		mcp2515_write_reg(RXB1CTRL,local.rxb0ctrl);
 		break;
 	default:
 		return ERR_INVALID_BUF_ID;
@@ -632,7 +632,7 @@ int can_mcp2515_rxb_opMode(int rxbuf_id, int rxbmode){
  * interrupt priority
  */
 int mcp2515_check_Int(void){
-	local.canintf = _mcp2515_read_reg(CANINTF,1);
+	local.canintf = mcp2515_read_reg(CANINTF,1);
 	if(CAN_EXT_VAL(local.canintf,MERRF))	return MERR_INT;
 	if(CAN_EXT_VAL(local.canintf,ERRIF))	return ERR_INT;
 	if(CAN_EXT_VAL(local.canintf,WAKIF))	return WAKE_INT;
@@ -669,7 +669,7 @@ handle_read_request(int id){
 	CAN_msg incoming;
 	int status =0;
 	//Performs read
-	status = _mcp2515_rx_status();
+	status = mcp2515_rx_status();
 	_mcp2515_read_rx_buffer(id, &incoming,status);
 	//printf("appending imcoming\n");
 	append_msg_to_queue( &rx_queue, &incoming);
@@ -684,7 +684,7 @@ int can_mcp2515_error_handling(void){
 	uint8_t eflg = 0;
 	CAN_msg temp;
 	//read error flag EFLG
-	eflg = _mcp2515_read_reg(EFLG,1);
+	eflg = mcp2515_read_reg(EFLG,1);
 	//Receive Buffer 1 Overflow
 	if(CAN_EXT_VAL(eflg,RX1OVR)){
 		//printf("Receive Buffer 1 Overflow\n");
@@ -693,7 +693,7 @@ int can_mcp2515_error_handling(void){
 		handle_read_request(RXB1ID);
 		//_mcp2515_read_rx_buffer(RXB1ID, &temp, _mcp2515_rx_status());
 		//reset to clear
-		_mcp2515_bit_modify(EFLG,CAN_RX1OVR_MASK,0xff);
+		mcp2515_bit_modify(EFLG,CAN_RX1OVR_MASK,0xff);
 	}
 	if(CAN_EXT_VAL(eflg, RX0OVR)){
 		//printf("Receive Buffer 0 Overflow\n");
@@ -702,7 +702,7 @@ int can_mcp2515_error_handling(void){
 		handle_read_request(RXB0ID);
 		//_mcp2515_read_rx_buffer(RXB0ID, &temp, _mcp2515_rx_status());
 		//reset to clear
-		_mcp2515_bit_modify(EFLG,CAN_RX0OVR_MASK,0xff);
+		mcp2515_bit_modify(EFLG,CAN_RX0OVR_MASK,0xff);
 	}
 	if(CAN_EXT_VAL(eflg, TXB0)){
 		printf("Bus-off \n");
@@ -747,7 +747,7 @@ void can_mcp2515_handle_interrupts(void* data UNUSED){
 	 */
 	_acquire_spin_lock(&(local.can_lock));
 
-	local.canintf = _mcp2515_read_reg(CANINTF,1);
+	local.canintf = mcp2515_read_reg(CANINTF,1);
 
 	//message error
 	if(CAN_EXT_VAL(local.canintf,MERRF)){
@@ -813,7 +813,7 @@ void can_mcp2515_handle_interrupts(void* data UNUSED){
 	}
 
 	//acknowledge all interrupts
-	_mcp2515_bit_modify(CANINTF, mask, local.canintf);
+	mcp2515_bit_modify(CANINTF, mask, local.canintf);
 	_release_spin_lock(&(local.can_lock));
 
 	Int_reg_callback(&can_mcp2515_handle_interrupts, NULL);
@@ -855,7 +855,7 @@ int can_mcp2515_config_Int(int irq, int op){
 		case NO_INT:
 			return 0;
 		}
-		_mcp2515_bit_modify(CANINTF, mask, local.canintf);
+		mcp2515_bit_modify(CANINTF, mask, local.canintf);
 		return 0;
 	}
 	// Enable/disable Interrupts
@@ -879,7 +879,7 @@ int can_mcp2515_config_Int(int irq, int op){
 	case NO_INT:
 		return 0;
 	}
-	_mcp2515_write_reg(CANINTE,local.caninte);
+	mcp2515_write_reg(CANINTE,local.caninte);
 	return 0;
 }
 
@@ -942,9 +942,9 @@ int can_mcp2515_config_baudrate(int speed){
 	CAN_INST_VAL(local.cnf3, PHSEG2, 2);	//3 bit value
 
 	//update registers
-	_mcp2515_write_reg(CNF1,local.cnf1);
-	_mcp2515_write_reg(CNF2,local.cnf2);
-	_mcp2515_write_reg(CNF3,local.cnf3);
+	mcp2515_write_reg(CNF1,local.cnf1);
+	mcp2515_write_reg(CNF2,local.cnf2);
+	mcp2515_write_reg(CNF3,local.cnf3);
 
 	//put the CAN device into previous operation mode
 	_mcp2515_set_opMode(pre_mode);
@@ -1027,9 +1027,9 @@ int can_mcp2515_set_baudrate(unsigned int baudrate, unsigned int sjw, unsigned i
 
 	_mcp2515_set_opMode(CONFIGURATION_MODE);
 	//update registers
-	_mcp2515_write_reg(CNF1,local.cnf1);
-	_mcp2515_write_reg(CNF2,local.cnf2);
-	_mcp2515_write_reg(CNF3,local.cnf3);
+	mcp2515_write_reg(CNF1,local.cnf1);
+	mcp2515_write_reg(CNF2,local.cnf2);
+	mcp2515_write_reg(CNF3,local.cnf3);
 	//put the CAN device into previous operation mode
 	_mcp2515_set_opMode(pre_mode);
 
@@ -1079,7 +1079,7 @@ int can_mcp2515_auto_baud_rate_detection(void){
 	//Finished, restore to previous states and return
 	can_mcp2515_rxb_opMode(RXB0ID,	backup[0]);
 	can_mcp2515_rxb_opMode(RXB1ID,	backup[1]);
-	_mcp2515_write_reg(CANINTE,	backup[2]);
+	mcp2515_write_reg(CANINTE,	backup[2]);
 	_mcp2515_set_opMode(pre_mode);
 
 	return baudrate;
@@ -1092,7 +1092,7 @@ int mcp2515_recovery(void){
 	uint8_t mode = 0;
 
 	//reset the chip
-	_mcp2515_reset();
+	mcp2515_reset();
 	udelay(10);
 
 	mode = _mcp2515_get_opMode();
@@ -1102,31 +1102,31 @@ int mcp2515_recovery(void){
 		return ERR_CAN_RESET_FAILD;
 	}
 	//recover the CNF registers
-	_mcp2515_write_reg(CNF1, local.cnf1);
+	mcp2515_write_reg(CNF1, local.cnf1);
 	//test accessibility
-	if(_mcp2515_read_reg(CNF1,1)!= local.cnf1){
+	if(mcp2515_read_reg(CNF1,1)!= local.cnf1){
 		return ERR_CAN_ACCESS_FAILED;
 	}
-	_mcp2515_write_reg(CNF2, 		local.cnf2);
-	_mcp2515_write_reg(CNF3, 		local.cnf3);
-	_mcp2515_write_reg(CANINTE, 	local.caninte);
-	_mcp2515_write_reg(TXRTSCTRL, 	local.txrtsctrl);
-	_mcp2515_write_reg(BFPCTRL, 	local.bfpctrl);
-	_mcp2515_write_reg(TXBnCTRL(0),	local.txb0ctrl);
-	_mcp2515_write_reg(TXBnCTRL(1),	local.txb1ctrl);
-	_mcp2515_write_reg(TXBnCTRL(2),	local.txb2ctrl);
-	_mcp2515_write_reg(RXB0CTRL,	local.rxb0ctrl);
-	_mcp2515_write_reg(RXB1CTRL,	local.rxb1ctrl);
+	mcp2515_write_reg(CNF2, 		local.cnf2);
+	mcp2515_write_reg(CNF3, 		local.cnf3);
+	mcp2515_write_reg(CANINTE, 	local.caninte);
+	mcp2515_write_reg(TXRTSCTRL, 	local.txrtsctrl);
+	mcp2515_write_reg(BFPCTRL, 	local.bfpctrl);
+	mcp2515_write_reg(TXBnCTRL(0),	local.txb0ctrl);
+	mcp2515_write_reg(TXBnCTRL(1),	local.txb1ctrl);
+	mcp2515_write_reg(TXBnCTRL(2),	local.txb2ctrl);
+	mcp2515_write_reg(RXB0CTRL,	local.rxb0ctrl);
+	mcp2515_write_reg(RXB1CTRL,	local.rxb1ctrl);
 	// write from 0x00 ~ 0x0B (RXF0SIDH ~ RXF2EID0)
-	_mcp2515_write_mult_regs(RXF0SIDH, &(local.rxf0sidh), 12);
+	mcp2515_write_nregs(RXF0SIDH, &(local.rxf0sidh), 12);
 	// write from 0x10 ~ 0x1B (RXF3SIDH ~ RXF5EID0)
-	_mcp2515_write_mult_regs(RXF3SIDH, &(local.rxf3sidh), 12);
+	mcp2515_write_nregs(RXF3SIDH, &(local.rxf3sidh), 12);
 	// write from 0x20 ~ 0x27 (RXM0SIDH ~ RXM1EID0)
-	_mcp2515_write_mult_regs(RXM0SIDH, &(local.rxm0sidh), 8);
+	mcp2515_write_nregs(RXM0SIDH, &(local.rxm0sidh), 8);
 	// all error counters are cleared
 	local.tec = local.rec = 0;
 	//put into previous opMode
-	_mcp2515_bit_modify(CANCTRL, 0xE0, local.canctrl);
+	mcp2515_bit_modify(CANCTRL, 0xE0, local.canctrl);
 	//now the CAN should be up and running
 	return 0;
 }
@@ -1137,7 +1137,7 @@ int mcp2515_recovery(void){
  */
 void can_mcp2515_rxb_rollover(int op){
 	CAN_INST_VAL(local.rxb0ctrl, RXB0_BUKT, op);
-	_mcp2515_write_reg(RXB0CTRL, local.rxb0ctrl);
+	mcp2515_write_reg(RXB0CTRL, local.rxb0ctrl);
 }
 
 
@@ -1169,7 +1169,7 @@ int can_mcp2515_init(int speed){
 	 * Set filter and mask registers
 	 * Configure receive regs as FIFO.
 	 */
-	_mcp2515_reset();
+	mcp2515_reset();
 	/*
 	 * delay a bit till MCP2515 has restart
 	 */
@@ -1224,14 +1224,14 @@ int can_mcp2515_init(int speed){
 	CAN_INST_VAL(local.bfpctrl, B0BFE, ENABLE);
 	CAN_INST_VAL(local.bfpctrl, B1BFM, ENABLE);
 	CAN_INST_VAL(local.bfpctrl, B0BFM, ENABLE);
-	_mcp2515_write_reg(BFPCTRL,local.bfpctrl);
+	mcp2515_write_reg(BFPCTRL,local.bfpctrl);
 	//Disable TX0RTS,TX1RTS,TX2RTS Input Pin
 	local.txrtsctrl = 0;
-	_mcp2515_write_reg(TXRTSCTRL, local.txrtsctrl);
+	mcp2515_write_reg(TXRTSCTRL, local.txrtsctrl);
 	//put CAN device into normal operation mode
 	_mcp2515_set_opMode(NORMAL_MODE);
 
-	v = _mcp2515_read_reg(CANCTRL, 1);
+	v = mcp2515_read_reg(CANCTRL, 1);
 	printf("MCP2515 init, CANCTRL %d\n",v);
 	local.state = INITALISED;
 
@@ -1357,7 +1357,7 @@ int can_mcp2515_set_FILTER_MASK(int filtermask, unsigned int val, unsigned int e
 	localdes[1] = sidl;
 	localdes[2] = eid8;
 	localdes[4] = eid0;
-	_mcp2515_write_mult_regs(reg, localdes, 4);
+	mcp2515_write_nregs(reg, localdes, 4);
 	//put the CAN device into previous operation mode
 	_mcp2515_set_opMode(pre_mode);
 	return 0;
@@ -1368,11 +1368,11 @@ int can_mcp2515_rxb_filter_hit(int rxid){
 	int rxbctrl, RXFhit = 0;
 	switch(rxid){
 	case RXB0ID:
-		rxbctrl = _mcp2515_read_reg(RXB0CTRL,1);
+		rxbctrl = mcp2515_read_reg(RXB0CTRL,1);
 		RXFhit = CAN_EXT_VAL(rxbctrl,RXB0_FILHIT);
 		break;
 	case RXB1ID:
-		rxbctrl = _mcp2515_read_reg(RXB1CTRL,1);
+		rxbctrl = mcp2515_read_reg(RXB1CTRL,1);
 		RXFhit = CAN_EXT_VAL(rxbctrl,RXB1_FILHIT);
 		break;
 	}

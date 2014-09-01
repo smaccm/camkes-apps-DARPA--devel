@@ -19,6 +19,18 @@
 #include "can_inf.h"
 #include "common.h"
 
+/* SPI Interface Instruction set */
+#define CMD_RESET         0xC0 //Resets internal registers to default state.
+#define CMD_READ          0x03 //Read data from register.
+#define CMD_READ_RXB      0x90 //Read RX buffer.
+#define CMD_WRITE         0x02 //Write data to register.
+#define CMD_LOAD_TXB      0x40 //Load TX buffer
+#define CMD_RTS           0x80 //Request to send.
+#define CMD_READ_STATUS   0xA0 //Read status.
+#define CMD_RX_STATUS     0xB0 //RX status
+#define CMD_BIT_MODIFY    0x05 //Set or clear individual bits in a particular register.
+
+/****************************************************************************/
 /* the set macro */
 #define CAN_SET_VAL(REG_FIELD, val)    (((val) << CAN_##REG_FIELD##_SHIFT) & CAN_##REG_FIELD##_MASK)
 /* the extract macro */
@@ -32,19 +44,6 @@
  * Our boards use 20MHz clocks
  */
 #define CAN_XTAL 					20000000
-
-/*-----------------------------
- * 		SPI Command set
- *----------------------------*/
-#define MCP_RESET 				 	0xC0			//Reset MCP2515	 : 1100 0000
-#define MCP_READ  				 	0x03			//Read Register  : 0000 0011
-#define MCP_READ_RX_BUFFER 			0x90			//Read RX Buffer : 1001 0nm0
-#define MCP_WRITE 					0x02			//Write Register : 0000 0010
-#define MCP_LOAD_TX_BUFFER 			0x40			//Load TX Buffer : 0100 0abc
-#define MCP_RTS 					0x80			//RTS Active   	 : 1000 0nnn
-#define MCP_READ_STATUS 			0xA0			//Read Status  	 : 1010 0000
-#define MCP_RX_STATUS 				0xB0			//RX Status    	 : 1011 0000
-#define MCP_BIT_MOD 				0x05			//Bit Modify   	 : 0000 0101
 
 /*
  * Read Status SPI command

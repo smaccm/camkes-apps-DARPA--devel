@@ -8,6 +8,9 @@
  * @TAG(NICTA_BSD)
  */
 
+/*
+ * MCP2515 - SPI interface instruction set.
+ */
 #include <stdint.h>
 #include <stdio.h>
 #include <string.h>
@@ -22,65 +25,74 @@
 #include "common.h"
 #include "utils.h"
 
-spi_dev_port_p 	mcp2515_spi_dev;	//ptr to SPI buffer
+#define DEV_ID CAN_APP_ID
+static spi_dev_port *spi_dev = NULL;
+
+void spi__init(void)
+{
+	spi_dev = (spi_dev_port*)spi_can;
+}
+
 /*
- * MCP2515 - driver function definitions
+ * Soft reset - put MCP2515 into default state.
  */
-/* Soft reset - put MCP2515 into default state */
-void _mcp2515_reset(void){
-
-	_acquire_spin_lock(&(mcp2515_spi_dev->lock));
-
-	mcp2515_spi_dev->txbuf[0] = MCP_RESET;
-    mcp2515_spi_transfer(mcp2515_spi_dev, 1, 0);
-
-    _release_spin_lock(&(mcp2515_spi_dev->lock));
-
+void mcp2515_reset(void)
+{
+	spi_dev->txbuf[0] = CMD_RESET;
+	spi_transfer(DEV_ID, 1, 0);
 }
 
-/* Read registers in series and return the first byte*/
-uint8_t _mcp2515_read_reg(int reg, int rcount){
-	uint8_t data = 0;
+/* Read register */
+uint8_t mcp2515_read_reg(int reg)
+{
+	spi_dev->txbuf[0] = CMD_READ;
+	spi_dev->txbuf[1] = reg;
 
-	_acquire_spin_lock(&(mcp2515_spi_dev->lock));
+	spi_transfer(DEV_ID, 2, 1);
 
-    mcp2515_spi_dev->txbuf[0] = MCP_READ;
-    mcp2515_spi_dev->txbuf[1] = reg;
-    mcp2515_spi_transfer(mcp2515_spi_dev, 2, rcount);
-    data = mcp2515_spi_dev->rxbuf[2];
-
-    _release_spin_lock(&(mcp2515_spi_dev->lock));
-
-    return data;
+	return spi_dev->rxbuf[2];
 }
 
-/* Write the value v into register r and return */
-void _mcp2515_write_reg(int r, unsigned char v){
+/* Read registers in series */
+void mcp2515_read_nregs(uint8_t reg, int count, uint8_t *buf)
+{
+	if (!buf) {
+		printf("Empty buffer!\n");
+		return;
+	}
 
-	_acquire_spin_lock(&(mcp2515_spi_dev->lock));
+	spi_dev->txbuf[0] = CMD_READ;
+	spi_dev->txbuf[1] = reg;
 
-    mcp2515_spi_dev->txbuf[0] = MCP_WRITE;
-    mcp2515_spi_dev->txbuf[1] = r;
-    mcp2515_spi_dev->txbuf[2] = v;
-    mcp2515_spi_transfer(mcp2515_spi_dev, 3,0);
+	spi_transfer(DEV_ID, 2, count);
 
-	_release_spin_lock(&(mcp2515_spi_dev->lock));
-
+	memcpy(buf, &spi_dev->rxbuf[2], count);
 }
 
-/* Write multiple bytes from the buffer to regs starting from reg v */
-int _mcp2515_write_mult_regs(uint8_t reg, uint8_t * buf, int byte_len){
+/* Write to register. */
+void mcp2515_write_reg(uint8_t reg, uint8_t val)
+{
+	spi_dev->txbuf[0] = CMD_WRITE;
+	spi_dev->txbuf[1] = reg;
+	spi_dev->txbuf[2] = val;
 
-	_acquire_spin_lock(&(mcp2515_spi_dev->lock));
+	spi_transfer(DEV_ID, 3, 0);
+}
 
-    mcp2515_spi_dev->txbuf[0] = MCP_WRITE;
-    mcp2515_spi_dev->txbuf[1] = reg;
-    memcpy(&(mcp2515_spi_dev->txbuf[2]), buf, byte_len);
-	mcp2515_spi_transfer(mcp2515_spi_dev, 2 + byte_len, 0);
+/* Write to registers. */
+void mcp2515_write_nregs(uint8_t reg, uint8_t *buf, int count)
+{
+	if (!buf) {
+		printf("Empty buffer!\n");
+		return;
+	}
 
-	_release_spin_lock(&(mcp2515_spi_dev->lock));
+	spi_dev->txbuf[0] = CMD_WRITE;
+	spi_dev->txbuf[1] = reg;
 
-	return 0;
+	memcpy(&spi_dev->txbuf[2], buf, count);
+
+	spi_transfer(DEV_ID, 2 + count, 0);
 }
 
 /* Bit Modify Instruction:
@@ -90,17 +102,14 @@ int _mcp2515_write_mult_regs(uint8_t reg, uint8_t * buf, int byte_len){
  * BFPCTRL, TXRTSCTRL, CANCTRL, CNF1, CNF2, CNF3, CANINTE, CANINTF, EFLG,
  * TXB0CTRL, TXB1CTRL, TXB2CTRL, RXB0CTRL, RXB1CTRL
  */
-void _mcp2515_bit_modify(uint8_t adress, uint8_t mask, uint8_t data){
+void mcp2515_bit_modify(uint8_t reg, uint8_t mask, uint8_t val)
+{
+	spi_dev->txbuf[0] = CMD_BIT_MODIFY;
+	spi_dev->txbuf[1] = reg;
+	spi_dev->txbuf[2] = mask;
+	spi_dev->txbuf[3] = val;
 
-	_acquire_spin_lock(&(mcp2515_spi_dev->lock));
-
-	mcp2515_spi_dev->txbuf[0] = MCP_BIT_MOD;
-	mcp2515_spi_dev->txbuf[1] = adress;
-	mcp2515_spi_dev->txbuf[2] = mask;
-	mcp2515_spi_dev->txbuf[3] = data;
-	mcp2515_spi_transfer(mcp2515_spi_dev, 4,0);
-
-	_release_spin_lock(&(mcp2515_spi_dev->lock));
+	spi_transfer(DEV_ID, 4, 0);
 }
 
 /*
@@ -119,18 +128,13 @@ void _mcp2515_bit_modify(uint8_t adress, uint8_t mask, uint8_t data){
  *		7		CANINTF.TX2IF		// TXB2 Empty Interrupt Flag bit
  *	---------------------------------
  */
-int _mcp2515_read_status(void){
-	int status = 0;
+uint8_t mcp2515_read_status(void)
+{
+	spi_dev->txbuf[0] = CMD_READ_STATUS;
 
-	_acquire_spin_lock(&(mcp2515_spi_dev->lock));
+	spi_transfer(DEV_ID, 1, 1);
 
-    mcp2515_spi_dev->txbuf[0] = MCP_READ_STATUS;
-    mcp2515_spi_transfer(mcp2515_spi_dev, 1, 1);
-    status = mcp2515_spi_dev->rxbuf[1];
-
-	_release_spin_lock(&(mcp2515_spi_dev->lock));
-
-    return status;
+	return spi_dev->rxbuf[1];
 }
 
 /*
@@ -163,17 +167,12 @@ int _mcp2515_read_status(void){
  *		1 1 1	RXF1 (Rollover to RXB1)
  *	---------------------------------
  */
-int _mcp2515_rx_status(void){
-	int status = 0;
+uint8_t mcp2515_rx_status(void)
+{
+	spi_dev->txbuf[0] = CMD_RX_STATUS;
 
-	_acquire_spin_lock(&(mcp2515_spi_dev->lock));
+	spi_transfer(DEV_ID, 1, 1);
 
-    mcp2515_spi_dev->txbuf[0] = MCP_RX_STATUS;
-    mcp2515_spi_transfer(mcp2515_spi_dev, 1, 1);
-    status = mcp2515_spi_dev->rxbuf[1];
-
-	_release_spin_lock(&(mcp2515_spi_dev->lock));
-
-    return status;
+	return spi_dev->rxbuf[1];
 }
 

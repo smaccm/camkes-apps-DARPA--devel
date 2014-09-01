@@ -13,10 +13,10 @@ import "../../interfaces/can.idl4";
 
 component can {
        	provides can_inf can;
-       	uses spi_inf	spi;
-       	
-	dataport Buf	spi1_can;
 	dataport Buf	can_buf;
+
+	uses spi_inf	spi;
+	dataport Buf	spi_can;
 
 	consumes IntEvent 	Int;
 	emits 	IntEventAck IntAck;
