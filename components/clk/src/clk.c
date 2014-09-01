@@ -19,9 +19,14 @@ static int set_spi_clock(int periph_id, unsigned long rate)
 {
     volatile uint32_t *base = (uint32_t*)cmu_top_clk;
     uint32_t r, rpre, v;
-    int fin = 24000000; /* XXTI */
-    int div = fin / rate;
+    int fin;
+    int div;
 
+    fin = 24000000; /* XXTI */
+    /* SPI has a Fixed /2 dividor */
+    fin /= 2;
+    /* The division we are after */
+    div = fin / rate;
     /* Tune PRE_RATIO with RATIO at maximum */
     rpre = (div / 0xf);
     /* Now tune RATIO */
