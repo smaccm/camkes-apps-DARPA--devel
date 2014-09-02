@@ -30,6 +30,16 @@
 #define CMD_RX_STATUS     0xB0 //RX status
 #define CMD_BIT_MODIFY    0x05 //Set or clear individual bits in a particular register.
 
+/* SPI Command Functions */
+void mcp2515_reset(void);
+uint8_t mcp2515_read_reg(int reg);
+void mcp2515_read_nregs(uint8_t reg, int count, uint8_t *buf);
+void mcp2515_write_reg(uint8_t reg, uint8_t val);
+void mcp2515_write_nregs(uint8_t reg, uint8_t *buf, int count);
+void mcp2515_bit_modify(uint8_t reg, uint8_t mask, uint8_t val);
+uint8_t mcp2515_read_status(void);
+uint8_t mcp2515_rx_status(void);
+
 /****************************************************************************/
 /* the set macro */
 #define CAN_SET_VAL(REG_FIELD, val)    (((val) << CAN_##REG_FIELD##_SHIFT) & CAN_##REG_FIELD##_MASK)

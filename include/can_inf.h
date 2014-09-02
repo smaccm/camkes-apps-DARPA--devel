@@ -7,17 +7,31 @@
  *
  * @TAG(NICTA_BSD)
  */
-
-/*
- * can_inf.h
- *  Created on: Jun 6, 2013
- *      Author: Jiawei Xie
- */
-
 #ifndef CAN_INF_H_
 #define CAN_INF_H_
 
+#define CAN_MAX_DLC  8
 
+/**
+ * Basic CAN frame structure.
+ *
+ * @id: CAN id(11 bits for standard frame, 29 bits if extended frame).
+ * @err: Error frame flag.
+ * @rtr: Remote Transmission Request.
+ * @exide: Extended frame flag.
+ * @dlc: Data Length Code(0 ~ 8).
+ * @data: frame payload(8 bytes maximum).
+ */
+struct can_frame {
+	uint32_t id:29;
+	uint32_t err:1;
+	uint32_t rtr:1;
+	uint32_t exide:1;
+	uint8_t dlc:4;
+	uint8_t data[CAN_MAX_DLC] __attribute__((aligned(8)));
+};
+
+/*************************************************************************************/
 typedef struct{
 	uint32_t id;
 	uint8_t exide:1;

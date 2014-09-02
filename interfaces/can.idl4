@@ -9,6 +9,14 @@
  */
 
 procedure can_inf {
+	int setup(in int bitrate);
+	void send(in struct can_frame frame);
+	void recv(out struct can_frame frame);
+	void set_filter(in unsigned int can_id, in unsigned int mask);
+};
+
+/*
+procedure can_inf {
 
 	void mcp2515_handle_interrupts(void);
 	int  mcp2515_init(in int speed);
@@ -31,3 +39,4 @@ procedure can_inf {
 	int  mcp2515_error_handling(void);
 
 };
+*/
