@@ -14,16 +14,12 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <string.h>
-#include <stdbool.h>
 
 #include "can.h"
 
 #include "mcp2515.h"
-
-#include "can_inf.h"
 #include "spi_inf.h"
 #include "common.h"
-#include "utils.h"
 
 #define DEV_ID CAN_APP_ID
 static spi_dev_port *spi_dev = NULL;
@@ -43,7 +39,7 @@ void mcp2515_reset(void)
 }
 
 /* Read register */
-uint8_t mcp2515_read_reg(int reg)
+uint8_t mcp2515_read_reg(uint8_t reg)
 {
 	spi_dev->txbuf[0] = CMD_READ;
 	spi_dev->txbuf[1] = reg;
@@ -174,5 +170,36 @@ uint8_t mcp2515_rx_status(void)
 	spi_transfer(DEV_ID, 1, 1);
 
 	return spi_dev->rxbuf[1];
+}
+
+void mcp2515_rts(uint8_t mask)
+{
+	spi_dev->txbuf[0] = CMD_RTS | mask;
+	spi_transfer(DEV_ID, 1, 0);
+}
+
+/**
+ * Load TX buffer instruction.
+ *
+ * @buf: Data to send.
+ * @len: Buffer length.
+ * @idx: TX buffer index(0, 1 or 2).
+ * @flag: 0 -- whole CAN frame;
+ *        1 -- payload only.
+ */
+void mcp2515_load_txb(uint8_t *buf, uint8_t len, uint8_t idx, uint8_t flag)
+{
+	/*
+	 * Three bits mask indicates six possible locations.
+	 * The highest two bits refer to TXB2 and TXB1.
+	 * If the lowest bit is set, address points to TX buffer's data register.
+	 */
+	uint8_t mask = (idx * 2) | flag;
+
+	spi_dev->txbuf[0] = CMD_LOAD_TXB | mask;
+	memcpy(spi_dev->txbuf + 1, buf, len);
+
+	/* Buffer length plus one byte instruction. */
+	spi_transfer(DEV_ID, len + 1, 0);
 }
 

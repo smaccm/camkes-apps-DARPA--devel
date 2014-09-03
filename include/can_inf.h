@@ -10,7 +10,13 @@
 #ifndef CAN_INF_H_
 #define CAN_INF_H_
 
-#define CAN_MAX_DLC  8
+#include <stdint.h>
+
+#define CAN_SID_BITS  11
+#define CAN_EID_BITS  18
+#define CAN_EID_MASK  0x3FFFFU
+
+#define CAN_MAX_DLC   8
 
 /**
  * Basic CAN frame structure.
@@ -30,6 +36,7 @@ struct can_frame {
 	uint8_t dlc:4;
 	uint8_t data[CAN_MAX_DLC] __attribute__((aligned(8)));
 };
+typedef struct can_frame can_frame_t;
 
 /*************************************************************************************/
 typedef struct{

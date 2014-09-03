@@ -9,9 +9,10 @@
  */
 
 procedure can_inf {
-	int setup(in int bitrate);
-	void send(in struct can_frame frame);
-	void recv(out struct can_frame frame);
+	include "include/can_inf.h";
+	int setup(in int baudrate);
+	void send(in can_frame_t frame);
+	void recv(out can_frame_t frame);
 	void set_filter(in unsigned int can_id, in unsigned int mask);
 };
 

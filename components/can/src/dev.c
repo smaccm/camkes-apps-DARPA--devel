@@ -10,21 +10,33 @@
 
 #include <can_inf.h>
 
+#include <mcp2515.h>
 #include <can.h>
 
-int setup(int bitrate)
+void can__init(void)
 {
+	printf("CAN device started...\n");
+}
+
+int can_setup(int baudrate)
+{
+	set_mode(REQOP_CONFIG);
+
+	set_baudrate(125000);
+
+	set_mode(REQOP_NORMAL);
 	return 0;
 }
 
-void send(struct can_frame frame)
+void can_send(struct can_frame frame)
+{
+	transmit_frame(0, &frame);
+}
+
+void can_recv(struct can_frame *frame)
 {
 }
 
-void recv(struct can_frame *frame)
-{
-}
-
-void set_filter(unsigned int can_id, unsigned int mask)
+void can_set_filter(unsigned int can_id, unsigned int mask)
 {
 }

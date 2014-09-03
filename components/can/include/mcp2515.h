@@ -9,36 +9,111 @@
  */
 
 /*
- * MCP2515 SPI instructions and registers
+ * MCP2515 instructions and registers
  *
  */
 
 #ifndef MCP2515_H
 #define MCP2515_H
 
+#include <stdint.h>
 #include "can_inf.h"
 #include "common.h"
 
+/* Transmit Buffers */
+#define TXBCTRL(n)  ((((n) + 0x3) << 4)) //Control register
+#define TXBSIDH(n)  (TXBCTRL(n) + 0x1)   //Standard identifier high
+#define TXBSIDL(n)  (TXBCTRL(n) + 0x2)   //Standard identifier low
+#define TXBEID8(n)  (TXBCTRL(n) + 0x3)   //Extended identifier high
+#define TXBEID0(n)  (TXBCTRL(n) + 0x4)   //Extended identifier low
+#define TXBDLC(n)   (TXBCTRL(n) + 0x5)   //Data length code
+
+/* Transmit Buffer Control Bits */
+#define TXBCTRL_ABTF     BIT(6) //Message aborted flag
+#define TXBCTRL_MLOA     BIT(5) //Message lost arbitration
+#define TXBCTRL_TXERR    BIT(4) //Transmission error detected
+#define TXBCTRL_TXREQ    BIT(3) //Message transmit request
+#define TXBCTRL_TXP_SHF  0      //Transmit buffer priority
+
+/* Receive Buffers */
+#define RXBCTRL(n)  ((((n) + 0x6) << 4)) //Control register
+#define RXBSIDH(n)  (RXBCTRL(n) + 0x1)   //Standard identifier high
+#define RXBSIDL(n)  (RXBCTRL(n) + 0x2)   //Standard identifier low
+#define RXBEID8(n)  (RXBCTRL(n) + 0x3)   //Extended identifier high
+#define RXBEID0(n)  (RXBCTRL(n) + 0x4)   //Extended identifier low
+#define RXBDLC(n)   (RXBCTRL(n) + 0x5)   //Data length code
+
+/* Receive Buffer Control Bits */
+#define RXBCTRL_RXM_SHF     BIT(5) //Operating mode
+#define RXBCTRL_RTR         BIT(3) //Received remote transfer request
+#define RXBCTRL_BUKT_SHF    BIT(1) //Rollover enable
+#define RXBCTRL_FILHIT_SHF  BIT(0) //Filter bit
+
+/* Control Registers */
+#define CANSTAT  0xE //CAN controller state
+#define CANCTRL  0xF //CAN controller control
+
+#define CANCTRL_REQOP_MASK  0xE0   //Request operation mode bit mask
+#define CANCTRL_ABAT        BIT(4) //Abort all pending transmissions
+#define CANCTRL_OSM         BIT(3) //One shot mode
+#define CANCTRL_CLKEN       BIT(2) //CLKOUT pin enable
+#define CANCTRL_CLKPRE_SHF  0      //CLKOUT pin prescaler
+
+/* Bit timing registers */
+#define CNF1  0x2A //Bit timing configuration 1
+#define CNF2  0x29 //Bit timing configuration 2
+#define CNF3  0x28 //Bit timing configuration 3
+
+#define CNF1_SJW_SHF  6 //Synchronization jump width length
+#define CNF1_BRP_SHF  0 //Baud rate prescaler
+
+#define CNF2_BTLMODE     BIT(7) //PS2 bit time length
+#define CNF2_SAM         BIT(6) //Sample point configuration
+#define CNF2_PHSEG1_SHF  3      //PS1 length
+#define CNF2_PRSEG_SHF   0      //Propagation segment length
+
+#define CNF3_SOF         BIT(7) //Start of frame signal
+#define CNF3_WAKFIL      BIT(6) //Wake up filter
+#define CNF3_PHSEG2_SHF  0      //PS2 length
+
 /* SPI Interface Instruction set */
-#define CMD_RESET         0xC0 //Resets internal registers to default state.
-#define CMD_READ          0x03 //Read data from register.
-#define CMD_READ_RXB      0x90 //Read RX buffer.
-#define CMD_WRITE         0x02 //Write data to register.
+#define CMD_RESET         0xC0 //Resets internal registers to default state
+#define CMD_READ          0x03 //Read data from register
+#define CMD_READ_RXB      0x90 //Read RX buffer
+#define CMD_WRITE         0x02 //Write data to register
 #define CMD_LOAD_TXB      0x40 //Load TX buffer
-#define CMD_RTS           0x80 //Request to send.
-#define CMD_READ_STATUS   0xA0 //Read status.
+#define CMD_RTS           0x80 //Request to send
+#define CMD_READ_STATUS   0xA0 //Read status
 #define CMD_RX_STATUS     0xB0 //RX status
-#define CMD_BIT_MODIFY    0x05 //Set or clear individual bits in a particular register.
+#define CMD_BIT_MODIFY    0x05 //Set or clear individual bits in a particular register
+
+/*
+ * Modes of Operation
+ * Note: Do *NOT* change the order of those modes.
+ */
+enum op_mode {
+	REQOP_NORMAL = 0,
+	REQOP_SLEEP,
+	REQOP_LOOP,
+	REQOP_LISTEN,
+	REQOP_CONFIG
+};
 
 /* SPI Command Functions */
 void mcp2515_reset(void);
-uint8_t mcp2515_read_reg(int reg);
+uint8_t mcp2515_read_reg(uint8_t reg);
 void mcp2515_read_nregs(uint8_t reg, int count, uint8_t *buf);
 void mcp2515_write_reg(uint8_t reg, uint8_t val);
 void mcp2515_write_nregs(uint8_t reg, uint8_t *buf, int count);
 void mcp2515_bit_modify(uint8_t reg, uint8_t mask, uint8_t val);
 uint8_t mcp2515_read_status(void);
 uint8_t mcp2515_rx_status(void);
+void mcp2515_rts(uint8_t mask);
+void mcp2515_load_txb(uint8_t *buf, uint8_t len, uint8_t idx, uint8_t flag);
+
+/* MCP2515 functions */
+void transmit_frame(int txb_idx, struct can_frame *frame);
+void set_mode(enum op_mode mode);
 
 /****************************************************************************/
 /* the set macro */
@@ -108,7 +183,7 @@ uint8_t mcp2515_rx_status(void);
  * Local CAN registers copy
  */
 typedef struct mcp2515_reg_t{
-	volatile 	bool		can_lock;
+	volatile 	int can_lock;
 	uint8_t		state;
 	uint8_t		mode;
 	uint8_t		txb0ctrl;
@@ -199,8 +274,6 @@ typedef struct mcp2515_reg_t{
 /* Control Registers */
 #define BFPCTRL 		0x0C		//RXnBF pin control and status
 #define TXRTSCTRL 		0x0D		// TXnRTS Pin control and status
-#define CANSTAT			0x0E		//CAN Status
-#define CANCTRL			0x0F		//CAN Control
 #define CANINTE 		0x2B		//Interrupt Enable
 #define CANINTF 		0x2C		//Interrupt Flag
 /* ERROR */

@@ -13,7 +13,7 @@ import "../../interfaces/gpio.idl4";
 component gpio {
 //	control;
         provides gpio_inf 		gpio;
-        uses	 can_inf can;
+//        uses	 can_inf can;
         dataport Buf gpio1base;
         dataport Buf gpio2base;
         dataport Buf irqcbase;

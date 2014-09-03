@@ -9,12 +9,6 @@
  */
 
 /*
- * 	can.c
- *  Created on: Mar 15, 2013
- *      Author: Jiawei Xie
- */
-
-/*
  * Device driver for MCP2515
  * Microchip Technology MCP2515 is a stand-alone
  * Controller Area Network (CAN) controller that
@@ -49,24 +43,140 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <string.h>
-#include <stdbool.h>
+
+#include "can_inf.h"
+#include "mcp2515.h"
 
 #include "can.h"
 
-#include "mcp2515.h"
+#define SIDH_SHF      3
+#define SIDL_SHF      5
+#define EXIDE_SHF     3
+#define SIDL_EID_SHF  16
+#define EID8_SHF      8
+#define RTR_SHF       6
 
-#include "can_inf.h"
-#include "spi_inf.h"
-#include "common.h"
-#include "utils.h"
+#define BYTE_MASK    0xFF
+#define MAX_BUF_LEN  13
 
-enum{
-	INTERRUPT,
-	POLL,
-	NOT_INITIALISED,
-	INITALISED
-};
+/**
+ * Set bit timing registers
+ *
+ * Note: This operation requires configuration mode.
+ */
+static void hw_set_bit_timing(uint8_t sjw, uint8_t brp, uint8_t phseg1,
+				uint8_t phseg2, uint8_t prseg)
+{
+	uint8_t cnf[3];
 
+	cnf[2] = (sjw << CNF1_SJW_SHF) | brp;
+	cnf[1] = CNF2_BTLMODE | phseg1 << CNF2_PHSEG1_SHF | prseg;
+	cnf[0] = phseg2;
+
+	mcp2515_write_nregs(CNF3, cnf, 3);
+}
+
+void set_baudrate(int speed)
+{
+	hw_set_bit_timing(0, 7, 2, 2, 2);
+/*
+	switch(speed){
+					    //Set to 62.5 kbps
+						//SJW=00(Length=1 TQ), BRP = 15(TQ = 2 x (15+1)/FOSC)
+						//CNF1 = 0:0 + 0:0:1:1:1:1 -> 62.5 Kbps
+	 case CAN_62_5kbps:
+						CAN_INST_VAL(local.cnf1,BRP,CAN_62_5kbps);
+						break;
+
+					   //Set to 125 kbps
+						//SJW=00(Length=1 TQ), BRP = 7(TQ = 2 x (7+1)/FOSC)
+						//CNF1 = 0:0 + 0:0:0:1:1:1 -> 125  Kbps
+	 case CAN_125kbps:  CAN_INST_VAL(local.cnf1,BRP,CAN_125kbps);
+						break;
+
+						//Set to 250 kbps
+						//SJW=00(Length=1 TQ), BRP = 3(TQ = 2 x (3+1)/FOSC)
+					   //CNF1 = 0:0 + 0:0:0:0:1:1 -> 250  Kbps
+	 case CAN_250kbps:  CAN_INST_VAL(local.cnf1,BRP,CAN_250kbps);
+						break;
+
+						//Set to 500 kbps
+					   //SJW=00(Length=1 TQ), BRP = 1(TQ = 2 x (1+1)/FOSC)
+						//CNF1 = 0:0 + 0:0:0:0:0:1 -> 500  Kbps
+	 case CAN_500kbps:  CAN_INST_VAL(local.cnf1,BRP,CAN_500kbps);
+						break;
+
+						//Set to 1000 kbps
+						//SJW=00(Length=1 TQ), BRP = 0(TQ = 2 x (0+1)/FOSC)
+						//CNF1 = 0:0 + 0:0:0:0:0:0 -> 1000 Kbps
+	 case CAN_1000kbps: CAN_INST_VAL(local.cnf1,BRP,CAN_1000kbps);
+						break;
+
+						//unrecognized or null command
+	 default:           return 0;
+	}
+
+	//BTLMODE=1,PHSEG1=3TQ(0:1:0),PRSEG=3TQ(0:1:0)
+	//CNF2 = 1+0+0:1:0+0:1:0
+	CAN_INST_VAL(local.cnf2, BTLMODE, 1);	//1 bit value
+	CAN_INST_VAL(local.cnf2, PHSEG1, 2);	//3 bit value
+	CAN_INST_VAL(local.cnf2, PRSEG, 2);	//3 bit value
+	//PHSEG2=3TQ(0:1:0)
+	//CNF3 = 0+0+x:x:x:0:1:0
+	CAN_INST_VAL(local.cnf3, PHSEG2, 2);	//3 bit value
+
+	//update registers
+	mcp2515_write_reg(CNF1,local.cnf1);
+	mcp2515_write_reg(CNF2,local.cnf2);
+	mcp2515_write_reg(CNF3,local.cnf3);
+
+	//put the CAN device into previous operation mode
+	_mcp2515_set_opMode(pre_mode);
+	return 0;
+	*/
+}
+
+/**
+ * Request MCP2515 operation mode
+ */
+void set_mode(enum op_mode mode)
+{
+	mcp2515_bit_modify(CANCTRL, CANCTRL_REQOP_MASK, mode);
+}
+
+/*
+ * Load CAN frame into TX buffer.
+ */
+void transmit_frame(int txb_idx, struct can_frame *frame)
+{
+	uint32_t sid, eid;
+	uint8_t buf[MAX_BUF_LEN];
+
+	memset(buf, 0, MAX_BUF_LEN);
+
+	if (frame->exide) {
+		sid = frame->id >> CAN_EID_BITS;
+		eid = frame->id & CAN_EID_MASK;
+	} else {
+		sid = frame->id;
+		eid = 0;
+	}
+
+	buf[0] = sid >> SIDH_SHF;
+	buf[1] = (sid << SIDL_SHF) | (frame->exide << EXIDE_SHF) | (eid >> SIDL_EID_SHF);
+	buf[2] = eid >> EID8_SHF;
+	buf[3] = eid & BYTE_MASK;
+	buf[4] = (frame->rtr << RTR_SHF) | frame->dlc;
+
+	memcpy(buf + 5, frame->data, frame->dlc);
+
+	mcp2515_load_txb(buf, frame->dlc + 5, txb_idx, 0);
+
+	mcp2515_rts(1 << txb_idx);
+}
+
+/****************************************************************************/
+#if 0
 /* Local CAN registers copy */
 static mcp2515_regs local;
 
@@ -75,7 +185,7 @@ static mcp2515_regs local;
  * ------------------------ */
 
 //shared buffer
-static spi_dev_port 	*spi_dev;	//ptr to SPI buffer
+static struct spi_dev_port 	*spi_dev;	//ptr to SPI buffer
 CAN_data_ptr	msg;				//ptr to application buffer
 
 
@@ -148,43 +258,6 @@ remove_msg_from_queue(circ_buf* buf, CAN_msg * out)
 }
 
 
-void can__init(void) {
-	spi_lock = 0;
-	spi_dev = (spi_dev_port*)spi_can;
-	msg = (CAN_data_ptr) can_buf;
-	local.state = NOT_INITIALISED;
-	tx_queue.head = 0;
-	tx_queue.lock = 0;
-	tx_queue.tail = 0;
-	tx_queue.valids = 0;
-
-	rx_queue.head = 0;
-	rx_queue.lock = 0;
-	rx_queue.tail = 0;
-	rx_queue.valids = 0;
-}
-
-int mcp2515_spi_transfer(spi_dev_port* dev, int wcount, int rcount){
-	(void) dev;
-	int ret = 0;
-	ret = spi_transfer(CAN_APP_ID, wcount, rcount);
-	return ret;
-}
-
-void _mcp2515_rts(int txb_id){
-
-	_acquire_spin_lock(&(spi_dev->lock));
-
-	if(txb_id == TXB0ID) txb_id = 1;
-    spi_dev->txbuf[0] = CMD_RTS|(txb_id);
-
-    mcp2515_spi_transfer(spi_dev, 1,0);
-
-	_release_spin_lock(&(spi_dev->lock));
-
-}
-
-
 int mcp2515_check_free_buffer(void)
 {
   int status = mcp2515_read_status();
@@ -202,79 +275,16 @@ int mcp2515_check_free_buffer(void)
 int _mcp2515_get_opMode(void){
 	int mode = 0;
 	//read the mode from CANCTRL
-	mode = mcp2515_read_reg(CANSTAT, 1);
+	mode = mcp2515_read_reg(CANSTAT);
 	return (CAN_EXT_VAL(mode,OPMOD));
-}
-
-void _mcp2515_set_opMode(REQOP_MODE mode){
-	//REQOP = 0:0:0 (Set Normal Operation mode)
-	CAN_INST_VAL(local.canctrl,REQOP,mode);
-	mcp2515_bit_modify(CANCTRL, 0xE0, local.canctrl);
 }
 
 
 int can_mcp2515_check_message(void){
   int temp;
-  temp = mcp2515_read_reg(CANINTF, 1);
+  temp = mcp2515_read_reg(CANINTF);
   // Verify RX0,RX1 Frame Receive
   return (temp & (CAN_RX0IF_MASK|CAN_RX1IF_MASK));
-}
-
-/*
- * Load the message into tx buffer with tx_id
- */
-void _mcp2515_load_tx_buffer(int txb_id, CAN_msg * message){
-	//mcp2515_spi_dev->txbuf[0] = MCP_LOAD_TX_BUFFER|(txb*2);
-	uint8_t sidh,sidl, eid8, eid0, dlc = 0;
-	int buf_len = 0;
-
-	if(message->exide == TRUE){
-		sidh = (message->id >> 21) & CAN_SIDH8_MASK;
-		sidl = (message->id >> 18) & CAN_SIDL3_MASK;
-		//ExID Enable bit
-		CAN_INST_VAL(sidl,EXIDE,1);
-		CAN_INST_VAL(sidl,EID1716,(message->id >> 16));
-		//Extend ID
-		eid8 = (message->id >> 8) & CAN_EID8_MASK;
-		eid0 = (message->id) & CAN_EID0_MASK;
-
-	}else{
-		sidh = (message->id >> 3) & CAN_SIDH8_MASK;
-		sidl = (message->id << 5) & CAN_SIDL3_MASK;
-		//Extend ID
-		eid8 = 0;
-		eid0 = 0;
-	}
-	if (message->rtr){
-		// a rtr-frame has a length, but contains no data
-		CAN_INST_VAL(dlc, RTR, message->rtr);
-		// set message length
-		CAN_INST_VAL(dlc, DLC, message->length);
-		//set SPI tx buffer length
-		buf_len = 6;
-	}else{
-		// set message length
-		CAN_INST_VAL(dlc, DLC, message->length);
-		// copy in data
-		memcpy(&(spi_dev->txbuf[6]), message->data, message->length);
-		//set SPI tx buffer length
-		buf_len = 6 + message->length;
-	}
-
-
-	//store in tx buffers
-	_acquire_spin_lock(&(spi_dev->lock));
-
-	spi_dev->txbuf[0] = CMD_LOAD_TXB | txb_id;
-	spi_dev->txbuf[1] = sidh;
-	spi_dev->txbuf[2] = sidl;
-	spi_dev->txbuf[3] = eid8;
-	spi_dev->txbuf[4] = eid0;
-	spi_dev->txbuf[5] = dlc;
-    mcp2515_spi_transfer(spi_dev, buf_len, 0);
-
-	_release_spin_lock(&(spi_dev->lock));
-
 }
 
 int _mcp2515_read_rx_buffer(uint8_t rxb_id, CAN_msg * message, uint8_t rx_status){
@@ -884,158 +894,6 @@ int can_mcp2515_config_Int(int irq, int op){
 }
 
 
-//Configure Baud Rate Prescaler
-int can_mcp2515_config_baudrate(int speed){
-
-	int pre_mode = _mcp2515_get_opMode();
-
-	if(pre_mode > CONFIGURATION_MODE || pre_mode < NORMAL_MODE){
-		//SPI bus error
-		return ERR_CAN_ACCESS_FAILED;
-	}
-
-	_mcp2515_set_opMode(CONFIGURATION_MODE);
-
-	switch(speed){
-					    //Set to 62.5 kbps
-						//SJW=00(Length=1 TQ), BRP = 15(TQ = 2 x (15+1)/FOSC)
-						//CNF1 = 0:0 + 0:0:1:1:1:1 -> 62.5 Kbps
-	 case CAN_62_5kbps:
-		 	 	 	 	CAN_INST_VAL(local.cnf1,BRP,CAN_62_5kbps);
-						break;
-
-					   //Set to 125 kbps
-						//SJW=00(Length=1 TQ), BRP = 7(TQ = 2 x (7+1)/FOSC)
-						//CNF1 = 0:0 + 0:0:0:1:1:1 -> 125  Kbps
-	 case CAN_125kbps:  CAN_INST_VAL(local.cnf1,BRP,CAN_125kbps);
-						break;
-
-						//Set to 250 kbps
-						//SJW=00(Length=1 TQ), BRP = 3(TQ = 2 x (3+1)/FOSC)
-					   //CNF1 = 0:0 + 0:0:0:0:1:1 -> 250  Kbps
-	 case CAN_250kbps:  CAN_INST_VAL(local.cnf1,BRP,CAN_250kbps);
-						break;
-
-						//Set to 500 kbps
-					   //SJW=00(Length=1 TQ), BRP = 1(TQ = 2 x (1+1)/FOSC)
-						//CNF1 = 0:0 + 0:0:0:0:0:1 -> 500  Kbps
-	 case CAN_500kbps:  CAN_INST_VAL(local.cnf1,BRP,CAN_500kbps);
-						break;
-
-						//Set to 1000 kbps
-						//SJW=00(Length=1 TQ), BRP = 0(TQ = 2 x (0+1)/FOSC)
-						//CNF1 = 0:0 + 0:0:0:0:0:0 -> 1000 Kbps
-	 case CAN_1000kbps: CAN_INST_VAL(local.cnf1,BRP,CAN_1000kbps);
-						break;
-
-						//unrecognized or null command
-	 default:           return 0;
-	}
-
-	//BTLMODE=1,PHSEG1=3TQ(0:1:0),PRSEG=3TQ(0:1:0)
-	//CNF2 = 1+0+0:1:0+0:1:0
-	CAN_INST_VAL(local.cnf2, BTLMODE, 1);	//1 bit value
-	CAN_INST_VAL(local.cnf2, PHSEG1, 2);	//3 bit value
-	CAN_INST_VAL(local.cnf2, PRSEG, 2);	//3 bit value
-	//PHSEG2=3TQ(0:1:0)
-	//CNF3 = 0+0+x:x:x:0:1:0
-	CAN_INST_VAL(local.cnf3, PHSEG2, 2);	//3 bit value
-
-	//update registers
-	mcp2515_write_reg(CNF1,local.cnf1);
-	mcp2515_write_reg(CNF2,local.cnf2);
-	mcp2515_write_reg(CNF3,local.cnf3);
-
-	//put the CAN device into previous operation mode
-	_mcp2515_set_opMode(pre_mode);
-	return 0;
-}
-
-
-/*
- * This function is used to customize the CAN baud rate setting
- * SOF = 0
- * WAKFIL = 0
- * BTLMODE = 1 (PS2 determined by CNF3)
- * SAM: Triple_sample(1) or Single_sample(0)
- */
-int can_mcp2515_set_baudrate(unsigned int baudrate, unsigned int sjw, unsigned int sam, unsigned int sample_point_percent){
-	int pre_mode = -1;
-	// all in TQ unit
-	uint8_t ps1, ps2, syncseg, propseg = 0;
-	uint8_t nTQ,nTQrest = 0;	//num of TQs within 1 CAN bit time = 1/baudrate
-	uint8_t brp = 0;	//minimum baud rate prescaler
-
-	/* Calculate baud rate prescaler(BRP),
-	 * provide the maximum number of TQs within 1 CAN bit time
-	 *
-	 * 			2 * BRP							   1
-	 * TQ = -----------------;  nTQ * TQ = ------------------- = 1 CAN bit time
-	 * 			CAN_XTAL						baudrate
-	 *
-	 *					1					CAN_XTAL
-	 * baudrate = ----------------- =  -----------------
-	 *				nTQ * TQ			nTQ * 2 * BRP
-	 */
-	do{
-		brp++; // update BRP
-		nTQ = (uint8_t)( CAN_XTAL / ((baudrate * 2 * (uint32_t)brp)) );
-
-	} while( brp <= (CAN_MAX_BRP + 1) && nTQ > CAN_MAX_TQ );
-
-
-	// 75% sampling point, thus PS2 = nTQ / 4
-	//nTQrest = nTQ - (nTQ >> 2)
-
-	if(sample_point_percent >= CAN_MAX_SAMPLE_POINT){
-		return ERR_SET_BAUDRATE_FAILED;
-	}
-
-	//calculate ps2 according to the user-provided sampling point
-	nTQrest = (uint8_t)((uint32_t) nTQ * sample_point_percent / 100);
-	ps2 = nTQ - nTQrest;
-	//for PS1 = (rest of TQ) / 2 - 1
-	//ps1 = (nTQrest >> 1);
-	//for propseg,  (rest of TQ) / 2 - syncseg (1) - 1
-	syncseg = 1; //fixed
-	propseg = 3; //(nTQrest >> 1) - syncseg;
-	ps1 = nTQrest - propseg - syncseg;
-	if((propseg+ps1) < ps2 || (propseg + ps1) < 2 || ps2 < sjw){
-		return ERR_SET_BAUDRATE_FAILED;
-	}
-
-	CAN_INST_VAL(local.cnf1, BRP, 	 brp - 1);
-	CAN_INST_VAL(local.cnf3, PHSEG2, ps2 - 1);
-	CAN_INST_VAL(local.cnf2, PHSEG1, ps1 - 1);
-	CAN_INST_VAL(local.cnf2, PRSEG,  propseg - 1);
-
-	if(sam){
-		CAN_INST_VAL(local.cnf2, SAM, sam);
-	}
-	//set SJW, default 0
-	if( sjw > 0 && (sjw < CAN_MAX_SJW)){
-		CAN_INST_VAL(local.cnf1, SJW, (sjw-1));
-	}
-	printf("baudrate: BRP %d, propseg %d, ps1 %d, ps2 %d, SJW %d, SAM %d\n",\
-			brp, propseg, ps1, ps2, sjw, sam);
-
-	pre_mode = _mcp2515_get_opMode();
-	if(pre_mode > CONFIGURATION_MODE || pre_mode < NORMAL_MODE){
-		//SPI bus error
-		return ERR_CAN_ACCESS_FAILED;
-	}
-
-	_mcp2515_set_opMode(CONFIGURATION_MODE);
-	//update registers
-	mcp2515_write_reg(CNF1,local.cnf1);
-	mcp2515_write_reg(CNF2,local.cnf2);
-	mcp2515_write_reg(CNF3,local.cnf3);
-	//put the CAN device into previous operation mode
-	_mcp2515_set_opMode(pre_mode);
-
-	return 0;
-}
-
 /*
  * For auto-baud detection, it is necessary that at least two other nodes are communicating
  * with each other. The filters and masks can be used to allow only particular messages to be loaded
@@ -1363,6 +1221,76 @@ int can_mcp2515_set_FILTER_MASK(int filtermask, unsigned int val, unsigned int e
 	return 0;
 }
 
+/*
+ * This function is used to customize the CAN baud rate setting
+ * SOF = 0
+ * WAKFIL = 0
+ * BTLMODE = 1 (PS2 determined by CNF3)
+ * SAM: Triple_sample(1) or Single_sample(0)
+ */
+int can_mp2515_set_baudrate(unsigned int baudrate, unsigned int sjw, unsigned int sam, unsigned int sample_point_percent){
+	int pre_mode = -1;
+	// all in TQ unit
+	uint8_t ps1, ps2, syncseg, propseg = 0;
+	uint8_t nTQ,nTQrest = 0;	//num of TQs within 1 CAN bit time = 1/baudrate
+	uint8_t brp = 0;	//minimum baud rate prescaler
+
+	/* Calculate baud rate prescaler(BRP),
+	 * provide the maximum number of TQs within 1 CAN bit time
+	 *
+	 * 			2 * BRP							   1
+	 * TQ = -----------------;  nTQ * TQ = ------------------- = 1 CAN bit time
+	 * 			CAN_XTAL						baudrate
+	 *
+	 *					1					CAN_XTAL
+	 * baudrate = ----------------- =  -----------------
+	 *				nTQ * TQ			nTQ * 2 * BRP
+	 */
+	do{
+		brp++; // update BRP
+		nTQ = (uint8_t)( CAN_XTAL / ((baudrate * 2 * (uint32_t)brp)) );
+
+	} while( brp <= (CAN_MAX_BRP + 1) && nTQ > CAN_MAX_TQ );
+
+
+	// 75% sampling point, thus PS2 = nTQ / 4
+	//nTQrest = nTQ - (nTQ >> 2)
+
+	if(sample_point_percent >= CAN_MAX_SAMPLE_POINT){
+		return ERR_SET_BAUDRATE_FAILED;
+	}
+
+	//calculate ps2 according to the user-provided sampling point
+	nTQrest = (uint8_t)((uint32_t) nTQ * sample_point_percent / 100);
+	ps2 = nTQ - nTQrest;
+	//for PS1 = (rest of TQ) / 2 - 1
+	//ps1 = (nTQrest >> 1);
+	//for propseg,  (rest of TQ) / 2 - syncseg (1) - 1
+	syncseg = 1; //fixed
+	propseg = 3; //(nTQrest >> 1) - syncseg;
+	ps1 = nTQrest - propseg - syncseg;
+	if((propseg+ps1) < ps2 || (propseg + ps1) < 2 || ps2 < sjw){
+		return ERR_SET_BAUDRATE_FAILED;
+	}
+
+	CAN_INST_VAL(local.cnf1, BRP, 	 brp - 1);
+	CAN_INST_VAL(local.cnf3, PHSEG2, ps2 - 1);
+	CAN_INST_VAL(local.cnf2, PHSEG1, ps1 - 1);
+	CAN_INST_VAL(local.cnf2, PRSEG,  propseg - 1);
+
+	if(sam){
+		CAN_INST_VAL(local.cnf2, SAM, sam);
+	}
+	//set SJW, default 0
+	if( sjw > 0 && (sjw < CAN_MAX_SJW)){
+		CAN_INST_VAL(local.cnf1, SJW, (sjw-1));
+	}
+	printf("baudrate: BRP %d, propseg %d, ps1 %d, ps2 %d, SJW %d, SAM %d\n",\
+			brp, propseg, ps1, ps2, sjw, sam);
+
+	return 0;
+}
+
 
 int can_mcp2515_rxb_filter_hit(int rxid){
 	int rxbctrl, RXFhit = 0;
@@ -1379,4 +1307,4 @@ int can_mcp2515_rxb_filter_hit(int rxid){
 	return RXFhit;
 }
 
-
+#endif
