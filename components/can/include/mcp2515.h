@@ -52,12 +52,32 @@
 /* Control Registers */
 #define CANSTAT  0xE //CAN controller state
 #define CANCTRL  0xF //CAN controller control
+#define CANINTE  0x2B //CAN interrupt enable
+#define CANINTF  0x2C //CAN interrupt flag
 
 #define CANCTRL_REQOP_MASK  0xE0   //Request operation mode bit mask
 #define CANCTRL_ABAT        BIT(4) //Abort all pending transmissions
 #define CANCTRL_OSM         BIT(3) //One shot mode
 #define CANCTRL_CLKEN       BIT(2) //CLKOUT pin enable
 #define CANCTRL_CLKPRE_SHF  0      //CLKOUT pin prescaler
+
+#define CANINTE_MERRE  BIT(7) //Message error interrupt enable
+#define CANINTE_WAKIE  BIT(6) //Wakeup interrupt enable
+#define CANINTE_ERRIE  BIT(5) //Error interrupt enable
+#define CANINTE_TX2IE  BIT(4) //Transmit buffer 2 empty interrupt enable
+#define CANINTE_TX1IE  BIT(3) //Transmit buffer 1 empty interrupt enable
+#define CANINTE_TX0IE  BIT(2) //Transmit buffer 0 empty interrupt enable
+#define CANINTE_RX1IE  BIT(1) //Receive buffer 1 full interrupt enable
+#define CANINTE_RX0IE  BIT(0) //Receive buffer 0 full interrupt enable
+
+#define CANINTF_MERRF  BIT(7) //Message error interrupt flag
+#define CANINTF_WAKIF  BIT(6) //Wakeup interrupt flag
+#define CANINTF_ERRIF  BIT(5) //Error interrupt flag
+#define CANINTF_TX2IF  BIT(4) //Transmit buffer 2 empty interrupt flag
+#define CANINTF_TX1IF  BIT(3) //Transmit buffer 1 empty interrupt flag
+#define CANINTF_TX0IF  BIT(2) //Transmit buffer 0 empty interrupt flag
+#define CANINTF_RX1IF  BIT(1) //Receive buffer 1 full interrupt flag
+#define CANINTF_RX0IF  BIT(0) //Receive buffer 0 full interrupt flag
 
 /* Bit timing registers */
 #define CNF1  0x2A //Bit timing configuration 1
@@ -110,10 +130,13 @@ uint8_t mcp2515_read_status(void);
 uint8_t mcp2515_rx_status(void);
 void mcp2515_rts(uint8_t mask);
 void mcp2515_load_txb(uint8_t *buf, uint8_t len, uint8_t idx, uint8_t flag);
+void mcp2515_read_rxb(uint8_t *buf, uint8_t len, uint8_t idx, uint8_t flag);
 
 /* MCP2515 functions */
-void transmit_frame(int txb_idx, struct can_frame *frame);
+void set_baudrate(int speed);
 void set_mode(enum op_mode mode);
+void transmit_frame(int txb_idx, struct can_frame *frame);
+void receive_frame(int rxb_idx, struct can_frame *frame);
 
 /****************************************************************************/
 /* the set macro */
@@ -274,8 +297,6 @@ typedef struct mcp2515_reg_t{
 /* Control Registers */
 #define BFPCTRL 		0x0C		//RXnBF pin control and status
 #define TXRTSCTRL 		0x0D		// TXnRTS Pin control and status
-#define CANINTE 		0x2B		//Interrupt Enable
-#define CANINTF 		0x2C		//Interrupt Flag
 /* ERROR */
 #define TEC				0x1C		//Transmit Error Counter
 #define REC				0x1D		//Receiver Error Counter

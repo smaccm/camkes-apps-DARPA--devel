@@ -56,18 +56,15 @@ int run(void)
 			tx.data[4], tx.data[5], tx.data[6], tx.data[7]);
 		udelay(10000);
 
+		tx.id++;
+
 		/* Receive message */
-//		error = can_mcp2515_read_message(0, 100000);
-//		printf("Recv: error(%d), id(%x), data(%x, %x, %x, %x, %x, %x, %x, %x)\n",
-//			error, rx->id,
-//			rx->data[0], rx->data[1], rx->data[2], rx->data[3],
-//			rx->data[4], rx->data[5], rx->data[6], rx->data[7]);
-//		if(error){
-//			while(can_mcp2515_init(125000)){
-//				printf("Re-initialising MCP2515, Send error %d\n", error);
-//			}
-//		}
-//		udelay(10000);
+		can_recv(&rx);
+		printf("Recv: error(%d), id(%x), data(%x, %x, %x, %x, %x, %x, %x, %x)\n",
+			error, rx.id,
+			rx.data[0], rx.data[1], rx.data[2], rx.data[3],
+			rx.data[4], rx.data[5], rx.data[6], rx.data[7]);
+		udelay(10000);
 	}
 
 	return 0;

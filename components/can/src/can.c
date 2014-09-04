@@ -59,6 +59,9 @@
 #define BYTE_MASK    0xFF
 #define MAX_BUF_LEN  13
 
+/* Controller TXB/RXB registers */
+static enum can_buf_regs {SIDH = 0, SIDL, EID8, EID0, DLC, DAT};
+
 /**
  * Set bit timing registers
  *
@@ -76,64 +79,14 @@ static void hw_set_bit_timing(uint8_t sjw, uint8_t brp, uint8_t phseg1,
 	mcp2515_write_nregs(CNF3, cnf, 3);
 }
 
+/**
+ * Set CAN baudrate
+ *
+ * FIXME: hard code to 125000bps, add calculation.
+ */
 void set_baudrate(int speed)
 {
 	hw_set_bit_timing(0, 7, 2, 2, 2);
-/*
-	switch(speed){
-					    //Set to 62.5 kbps
-						//SJW=00(Length=1 TQ), BRP = 15(TQ = 2 x (15+1)/FOSC)
-						//CNF1 = 0:0 + 0:0:1:1:1:1 -> 62.5 Kbps
-	 case CAN_62_5kbps:
-						CAN_INST_VAL(local.cnf1,BRP,CAN_62_5kbps);
-						break;
-
-					   //Set to 125 kbps
-						//SJW=00(Length=1 TQ), BRP = 7(TQ = 2 x (7+1)/FOSC)
-						//CNF1 = 0:0 + 0:0:0:1:1:1 -> 125  Kbps
-	 case CAN_125kbps:  CAN_INST_VAL(local.cnf1,BRP,CAN_125kbps);
-						break;
-
-						//Set to 250 kbps
-						//SJW=00(Length=1 TQ), BRP = 3(TQ = 2 x (3+1)/FOSC)
-					   //CNF1 = 0:0 + 0:0:0:0:1:1 -> 250  Kbps
-	 case CAN_250kbps:  CAN_INST_VAL(local.cnf1,BRP,CAN_250kbps);
-						break;
-
-						//Set to 500 kbps
-					   //SJW=00(Length=1 TQ), BRP = 1(TQ = 2 x (1+1)/FOSC)
-						//CNF1 = 0:0 + 0:0:0:0:0:1 -> 500  Kbps
-	 case CAN_500kbps:  CAN_INST_VAL(local.cnf1,BRP,CAN_500kbps);
-						break;
-
-						//Set to 1000 kbps
-						//SJW=00(Length=1 TQ), BRP = 0(TQ = 2 x (0+1)/FOSC)
-						//CNF1 = 0:0 + 0:0:0:0:0:0 -> 1000 Kbps
-	 case CAN_1000kbps: CAN_INST_VAL(local.cnf1,BRP,CAN_1000kbps);
-						break;
-
-						//unrecognized or null command
-	 default:           return 0;
-	}
-
-	//BTLMODE=1,PHSEG1=3TQ(0:1:0),PRSEG=3TQ(0:1:0)
-	//CNF2 = 1+0+0:1:0+0:1:0
-	CAN_INST_VAL(local.cnf2, BTLMODE, 1);	//1 bit value
-	CAN_INST_VAL(local.cnf2, PHSEG1, 2);	//3 bit value
-	CAN_INST_VAL(local.cnf2, PRSEG, 2);	//3 bit value
-	//PHSEG2=3TQ(0:1:0)
-	//CNF3 = 0+0+x:x:x:0:1:0
-	CAN_INST_VAL(local.cnf3, PHSEG2, 2);	//3 bit value
-
-	//update registers
-	mcp2515_write_reg(CNF1,local.cnf1);
-	mcp2515_write_reg(CNF2,local.cnf2);
-	mcp2515_write_reg(CNF3,local.cnf3);
-
-	//put the CAN device into previous operation mode
-	_mcp2515_set_opMode(pre_mode);
-	return 0;
-	*/
 }
 
 /**
@@ -162,17 +115,44 @@ void transmit_frame(int txb_idx, struct can_frame *frame)
 		eid = 0;
 	}
 
-	buf[0] = sid >> SIDH_SHF;
-	buf[1] = (sid << SIDL_SHF) | (frame->exide << EXIDE_SHF) | (eid >> SIDL_EID_SHF);
-	buf[2] = eid >> EID8_SHF;
-	buf[3] = eid & BYTE_MASK;
-	buf[4] = (frame->rtr << RTR_SHF) | frame->dlc;
+	buf[SIDH] = sid >> SIDH_SHF;
+	buf[SIDL] = (sid << SIDL_SHF) | (frame->exide << EXIDE_SHF) | (eid >> SIDL_EID_SHF);
+	buf[EID8] = eid >> EID8_SHF;
+	buf[EID0] = eid & BYTE_MASK;
+	buf[DLC] = (frame->rtr << RTR_SHF) | frame->dlc;
 
-	memcpy(buf + 5, frame->data, frame->dlc);
+	memcpy(buf + DAT, frame->data, frame->dlc);
 
-	mcp2515_load_txb(buf, frame->dlc + 5, txb_idx, 0);
+	mcp2515_load_txb(buf, frame->dlc + DAT, txb_idx, 0);
 
 	mcp2515_rts(1 << txb_idx);
+}
+
+void receive_frame(int rxb_idx, struct can_frame *frame)
+{
+	uint32_t sid, eid;
+	uint8_t buf[MAX_BUF_LEN];
+
+	mcp2515_read_rxb(buf, MAX_BUF_LEN, rxb_idx, 0);
+
+	sid = (buf[SIDH] << SIDH_SHF) | (buf[SIDL] >> SIDL_SHF);
+
+	frame->exide = buf[SIDL] >> EXIDE_SHF;
+	if (frame->exide) {
+		eid = buf[SIDL] << SIDL_EID_SHF | buf[EID8] << EID8_SHF | buf[EID0];
+		frame->id = sid << CAN_EID_BITS | eid;
+	} else {
+		frame->id = sid;
+	}
+
+	frame->rtr = buf[DLC] >> RTR_SHF;
+	if (frame->rtr) {
+		frame->dlc = 0;
+	} else {
+		frame->dlc = buf[DLC];
+	}
+
+	memcpy(frame->data, buf + DAT, frame->dlc);
 }
 
 /****************************************************************************/

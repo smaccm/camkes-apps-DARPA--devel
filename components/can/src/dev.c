@@ -35,6 +35,7 @@ void can_send(struct can_frame frame)
 
 void can_recv(struct can_frame *frame)
 {
+	receive_frame(0, frame);
 }
 
 void can_set_filter(unsigned int can_id, unsigned int mask)

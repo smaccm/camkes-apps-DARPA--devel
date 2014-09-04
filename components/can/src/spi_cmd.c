@@ -203,3 +203,26 @@ void mcp2515_load_txb(uint8_t *buf, uint8_t len, uint8_t idx, uint8_t flag)
 	spi_transfer(DEV_ID, len + 1, 0);
 }
 
+/**
+ * Read RX buffer instruction.
+ *
+ * @buf: Read buffer.
+ * @len: Buffer length.
+ * @idx: RX buffer index(0 or 1).
+ * @flag: 0 -- whole CAN frame;
+ *        1 -- payload only.
+ */
+void mcp2515_read_rxb(uint8_t *buf, uint8_t len, uint8_t idx, uint8_t flag)
+{
+	/*
+	 * The high bit refer to RXB0 and RXB1.
+	 * If the low bit is set, address points to RX buffer's data register.
+	 */
+	uint8_t mask = (idx * 2) | flag;
+
+	spi_dev->txbuf[0] = CMD_READ_RXB | mask;
+
+	spi_transfer(DEV_ID, 1, len);
+	memcpy(buf, spi_dev->rxbuf + 1, len);
+}
+
