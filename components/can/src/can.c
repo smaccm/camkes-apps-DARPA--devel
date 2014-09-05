@@ -49,6 +49,7 @@
 
 #include "can.h"
 
+/* Macros for juggling TXB/RXB registers. */
 #define SIDH_SHF      3
 #define SIDL_SHF      5
 #define EXIDE_SHF     3
@@ -57,7 +58,7 @@
 #define RTR_SHF       6
 
 #define BYTE_MASK    0xFF
-#define MAX_BUF_LEN  13
+#define MAX_BUF_LEN  13   //Maximum length of a CAN frame.
 
 /* Controller TXB/RXB registers */
 static enum can_buf_regs {SIDH = 0, SIDL, EID8, EID0, DLC, DAT};
@@ -99,14 +100,22 @@ void set_mode(enum op_mode mode)
 
 /*
  * Load CAN frame into TX buffer.
+ *
+ * @txb_idx: TX buffer identifier.
+ * @frame: CAN frame to be sent.
+ *
+ * TODO:
+ *    1. Move RTS to upper level function and manage to send multiple frames.
+ *    2. Send payload only if IDs(and others) remain the same.
  */
-void transmit_frame(int txb_idx, struct can_frame *frame)
+void load_frame(int txb_idx, struct can_frame *frame)
 {
 	uint32_t sid, eid;
 	uint8_t buf[MAX_BUF_LEN];
 
 	memset(buf, 0, MAX_BUF_LEN);
 
+	/* Separate standard ID and extended ID if extended frame */
 	if (frame->exide) {
 		sid = frame->id >> CAN_EID_BITS;
 		eid = frame->id & CAN_EID_MASK;
@@ -115,28 +124,45 @@ void transmit_frame(int txb_idx, struct can_frame *frame)
 		eid = 0;
 	}
 
+	/* Convert CAN frame to transmit buffer form */
 	buf[SIDH] = sid >> SIDH_SHF;
 	buf[SIDL] = (sid << SIDL_SHF) | (frame->exide << EXIDE_SHF) | (eid >> SIDL_EID_SHF);
 	buf[EID8] = eid >> EID8_SHF;
 	buf[EID0] = eid & BYTE_MASK;
 	buf[DLC] = (frame->rtr << RTR_SHF) | frame->dlc;
 
+	/* Copy payload */
 	memcpy(buf + DAT, frame->data, frame->dlc);
 
+	/* Load to registers on the controller */
 	mcp2515_load_txb(buf, frame->dlc + DAT, txb_idx, 0);
 
+	/* Initiating transmission */
 	mcp2515_rts(1 << txb_idx);
 }
 
+/**
+ * Receive from RX buffer.
+ *
+ * @rxb_idx: RX buffer identifier
+ * @frame: CAN frame to be filled.
+ *
+ * TODO:
+ *    1. Only receive payload if IDs can be ignored.
+ *    2. Check the availability of the RX buffer.
+ */
 void receive_frame(int rxb_idx, struct can_frame *frame)
 {
 	uint32_t sid, eid;
 	uint8_t buf[MAX_BUF_LEN];
 
+	/* Read RX buffer from the controller */
 	mcp2515_read_rxb(buf, MAX_BUF_LEN, rxb_idx, 0);
 
+	/* All frames has standard ID */
 	sid = (buf[SIDH] << SIDH_SHF) | (buf[SIDL] >> SIDL_SHF);
 
+	/* See if it is an extended frame */
 	frame->exide = buf[SIDL] >> EXIDE_SHF;
 	if (frame->exide) {
 		eid = buf[SIDL] << SIDL_EID_SHF | buf[EID8] << EID8_SHF | buf[EID0];
@@ -145,6 +171,7 @@ void receive_frame(int rxb_idx, struct can_frame *frame)
 		frame->id = sid;
 	}
 
+	/* Remote frames do not have payload */
 	frame->rtr = buf[DLC] >> RTR_SHF;
 	if (frame->rtr) {
 		frame->dlc = 0;
@@ -152,6 +179,7 @@ void receive_frame(int rxb_idx, struct can_frame *frame)
 		frame->dlc = buf[DLC];
 	}
 
+	/* Copy in payload */
 	memcpy(frame->data, buf + DAT, frame->dlc);
 }
 

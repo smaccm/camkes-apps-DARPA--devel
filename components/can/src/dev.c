@@ -30,7 +30,7 @@ int can_setup(int baudrate)
 
 void can_send(struct can_frame frame)
 {
-	transmit_frame(0, &frame);
+	load_frame(0, &frame);
 }
 
 void can_recv(struct can_frame *frame)

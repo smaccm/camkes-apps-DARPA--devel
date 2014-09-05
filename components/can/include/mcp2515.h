@@ -135,7 +135,7 @@ void mcp2515_read_rxb(uint8_t *buf, uint8_t len, uint8_t idx, uint8_t flag);
 /* MCP2515 functions */
 void set_baudrate(int speed);
 void set_mode(enum op_mode mode);
-void transmit_frame(int txb_idx, struct can_frame *frame);
+void load_frame(int txb_idx, struct can_frame *frame);
 void receive_frame(int rxb_idx, struct can_frame *frame);
 
 /****************************************************************************/

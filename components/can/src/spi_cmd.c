@@ -172,6 +172,11 @@ uint8_t mcp2515_rx_status(void)
 	return spi_dev->rxbuf[1];
 }
 
+/**
+ * Request to send instruction.
+ *
+ * @mask: Three bits mask(Bit0 -- TXB0, Bit1 -- TXB1, Bit2 -- TXB2)
+ */
 void mcp2515_rts(uint8_t mask)
 {
 	spi_dev->txbuf[0] = CMD_RTS | mask;
