@@ -61,7 +61,7 @@
 #define MAX_BUF_LEN  13   //Maximum length of a CAN frame.
 
 /* Controller TXB/RXB registers */
-static enum can_buf_regs {SIDH = 0, SIDL, EID8, EID0, DLC, DAT};
+enum can_buf_regs {SIDH = 0, SIDL, EID8, EID0, DLC, DAT};
 
 /**
  * Set bit timing registers
@@ -95,7 +95,19 @@ void set_baudrate(int speed)
  */
 void set_mode(enum op_mode mode)
 {
-	mcp2515_bit_modify(CANCTRL, CANCTRL_REQOP_MASK, mode);
+	mcp2515_bit_modify(CANCTRL, CANCTRL_REQOP_MASK, mode << CANCTRL_REQOP_SHF);
+}
+
+/**
+ * Get current operation mode of the controller.
+ */
+enum op_mode get_mode(void)
+{
+	return mcp2515_read_reg(CANSTAT) >> CANSTAT_OPMOD_SHF;
+}
+
+int set_rx_filter(uint32_t id, uint32_t mask)
+{
 }
 
 /*

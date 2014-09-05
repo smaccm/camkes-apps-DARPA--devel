@@ -38,6 +38,18 @@ struct can_frame {
 };
 typedef struct can_frame can_frame_t;
 
+/**
+ * CAN RX buffer filter.
+ *
+ * @id: CAN frame identifier bits which are accepted.
+ * @mask: CAN mask.
+ */
+struct can_filter {
+	uint32_t id;
+	uint32_t mask;
+};
+typedef struct can_filter can_filter_t;
+
 /*************************************************************************************/
 typedef struct{
 	uint32_t id;

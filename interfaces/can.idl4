@@ -13,7 +13,9 @@ procedure can_inf {
 	int setup(in int baudrate);
 	void send(in can_frame_t frame);
 	void recv(out can_frame_t frame);
-	void set_filter(in unsigned int can_id, in unsigned int mask);
+	int set_filter(in unsigned id, in unsigned int mask);
+	void clear_filter(in int filter_id);
+	void disable_filtering(void);
 };
 
 /*

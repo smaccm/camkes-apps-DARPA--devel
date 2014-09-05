@@ -38,6 +38,15 @@ void can_recv(struct can_frame *frame)
 	receive_frame(0, frame);
 }
 
-void can_set_filter(unsigned int can_id, unsigned int mask)
+int can_set_filter(unsigned int id, unsigned int mask)
+{
+	return -1;
+}
+
+void can_clear_filter(int filter_id)
+{
+}
+
+void can_disable_filtering(void)
 {
 }

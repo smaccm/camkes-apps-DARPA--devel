@@ -43,10 +43,21 @@
 #define RXBEID0(n)  (RXBCTRL(n) + 0x4)   //Extended identifier low
 #define RXBDLC(n)   (RXBCTRL(n) + 0x5)   //Data length code
 
+/* Receive Buffer Filters */
+#define RXFSIDH(n)  ((n) << 2)        //Filter standard identifier high
+#define RXFSIDL(n)  (RXF0SIDH(n) + 1) //Filter standard identifier low
+#define RXFEID8(n)  (RXF0SIDH(n) + 2) //Filter extended identifier high
+#define RXFEID0(n)  (RXF0SIDH(n) + 3) //Filter extended identifier low
+
+#define RXMSIDH(n)  (((n) << 2) + 0x20) //Mask standard identifier high
+#define RXMSIDL(n)  (RXMSIDH(n) + 1)    //Mask standard identifier low
+#define RXMEIDH(n)  (RXMSIDH(n) + 2)    //Mask extended identifier high
+#define RXMEIDL(n)  (RXMSIDH(n) + 3)    //Mask extended identifier low
+
 /* Receive Buffer Control Bits */
 #define RXBCTRL_RXM_SHF     BIT(5) //Operating mode
 #define RXBCTRL_RTR         BIT(3) //Received remote transfer request
-#define RXBCTRL_BUKT_SHF    BIT(1) //Rollover enable
+#define RXBCTRL_BUKT        BIT(2) //Rollover enable
 #define RXBCTRL_FILHIT_SHF  BIT(0) //Filter bit
 
 /* Control Registers */
@@ -55,7 +66,11 @@
 #define CANINTE  0x2B //CAN interrupt enable
 #define CANINTF  0x2C //CAN interrupt flag
 
+#define CANSTAT_OPMOD_SHF  5 //Operation mode
+#define CANSTAT_ICOD_SHF   1 //Interrupt flag code
+
 #define CANCTRL_REQOP_MASK  0xE0   //Request operation mode bit mask
+#define CANCTRL_REQOP_SHF   5      //Request operation mode
 #define CANCTRL_ABAT        BIT(4) //Abort all pending transmissions
 #define CANCTRL_OSM         BIT(3) //One shot mode
 #define CANCTRL_CLKEN       BIT(2) //CLKOUT pin enable
