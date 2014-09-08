@@ -60,7 +60,12 @@
 #define BYTE_MASK    0xFF
 #define MAX_BUF_LEN  13   //Maximum length of a CAN frame.
 
-/* Controller TXB/RXB registers */
+#define FILTER_BYTES    4 //Length of RX filter.
+#define NUM_OF_MASKS    2 //Number of filter masks.
+#define FILTS_OF_MASK0  2 //Number of filters link to Mask 0.
+#define FILTS_OF_MASK1  4 //Number of filters link to Mask 1.
+
+/* Controller TXB/RXB/Filter registers */
 enum can_buf_regs {SIDH = 0, SIDL, EID8, EID0, DLC, DAT};
 
 /**
@@ -81,7 +86,86 @@ static void hw_set_bit_timing(uint8_t sjw, uint8_t brp, uint8_t phseg1,
 }
 
 /**
- * Set CAN baudrate
+ * Check if a filter is empty.
+ *
+ * @idx: Filter index(0 ~ 5)
+ *
+ * @return 0 -- Filter in use.
+ *         Other -- Filter is empty.
+ *
+ * NOTE: Only works in configuration mode.
+ */
+static int is_filter_empty(uint8_t idx)
+{
+	uint8_t buf[FILTER_BYTES];
+	int ret = 0;
+
+	mcp2515_read_nregs(RXFSIDH(idx), FILTER_BYTES, buf);
+
+	for (int i = 0; i < FILTER_BYTES; i++) {
+		ret |= buf[i];
+	}
+
+	return !ret;
+}
+
+/**
+ * Write to filter and mask registers on the controller.
+ *
+ * @idx: Filter index.
+ * @can_id: CAN frame id to be filtered.
+ * @mask: Mask of the filter, ignored if zero.
+ *
+ * NOTE: If mask is zero, it means that some of the other filters are in use.
+ *       And the mask registers have been set.
+ */
+static void write_to_filter(uint8_t idx, struct can_id can_id, uint32_t mask)
+{
+	uint32_t sid, eid;
+	uint8_t buf[FILTER_BYTES];
+
+	/* Check if mask registers need to be set. */
+	if (mask) {
+		if (can_id.exide) {
+			sid = mask >> CAN_EID_BITS;
+			eid = mask & CAN_EID_MASK;
+		} else {
+			sid = mask;
+			eid = 0;
+		}
+
+		buf[SIDH] = sid >> SIDH_SHF;
+		buf[SIDL] = (sid << SIDL_SHF) | (eid >> SIDL_EID_SHF);
+		buf[EID8] = eid >> EID8_SHF;
+		buf[EID0] = eid & BYTE_MASK;
+
+		/* Filter 0 and 1 use Mask 0, filter 2 ~ 5 use Mask 1. */
+		if (idx < FILTS_OF_MASK0) {
+			mcp2515_write_nregs(RXMSIDH(0), buf, FILTER_BYTES);
+		} else {
+			mcp2515_write_nregs(RXMSIDH(1), buf, FILTER_BYTES);
+		}
+	}
+
+	/* Set filter registers. */
+	if (can_id.exide) {
+		sid = can_id.id >> CAN_EID_BITS;
+		eid = can_id.id & CAN_EID_MASK;
+	} else {
+		sid = can_id.id;
+		eid = 0;
+	}
+
+	buf[SIDH] = sid >> SIDH_SHF;
+	buf[SIDL] = (sid << SIDL_SHF) | (can_id.exide << EXIDE_SHF) | (eid >> SIDL_EID_SHF);
+	buf[EID8] = eid >> EID8_SHF;
+	buf[EID0] = eid & BYTE_MASK;
+
+	mcp2515_write_nregs(RXFSIDH(idx), buf, FILTER_BYTES);
+}
+
+/**
+ * Set CAN baud rate
  *
  * FIXME: hard code to 125000bps, add calculation.
  */
@@ -106,8 +190,108 @@ enum op_mode get_mode(void)
 	return mcp2515_read_reg(CANSTAT) >> CANSTAT_OPMOD_SHF;
 }
 
-int set_rx_filter(uint32_t id, uint32_t mask)
+/**
+ * Set RX buffer filter
+ *
+ * NOTE: Only works in configuration mode.
+ *
+ * FIXME: Check if rollover is enabled.
+ */
+int set_rx_filter(struct can_id can_id, uint32_t mask)
 {
+	uint8_t buf[FILTER_BYTES];
+	uint32_t cur_mask;         //Current value in the mask registers.
+	uint8_t sid, eid;
+
+	for (int i = 0; i < NUM_OF_MASKS; i++) {
+		/* Read Mask */
+		mcp2515_read_nregs(RXMSIDH(i), FILTER_BYTES, buf);
+
+		sid = (buf[SIDH] << SIDH_SHF) | (buf[SIDL] >> SIDL_SHF);
+		eid = buf[SIDL] << SIDL_EID_SHF | buf[EID8] << EID8_SHF | buf[EID0];
+		cur_mask = sid << CAN_EID_BITS | eid;
+
+		if (!can_id.exide) {
+			cur_mask >>= CAN_EID_BITS;
+		}
+
+		if (!cur_mask && !eid) {
+			/*
+			 * If Mask is empty, it means none of the filters which
+			 * relate to the mask is in use.
+			 */
+			write_to_filter(i * FILTS_OF_MASK0, can_id, mask);
+			return i * FILTS_OF_MASK0;
+		} else if (cur_mask == mask) {
+			/*
+			 * Some of the filter are in use, the mask has to be the
+			 * same, otherwise the old filters would be corrupted.
+			 */
+			for (int j = i * FILTS_OF_MASK0; j < (i * FILTS_OF_MASK1 + FILTS_OF_MASK0); j++) {
+				if (is_filter_empty(j)) {
+					write_to_filter(j, can_id, 0);
+					return j;
+				}
+			}
+		}
+	}
+
+	return -1;
+}
+
+/**
+ * Clear RX buffer filter.
+ *
+ * @idx: Filter index.
+ *
+ * NOTE: Only works in configuration mode.
+ */
+void clear_rx_filter(uint8_t idx)
+{
+	int mask_idx, i;
+	uint8_t buf[FILTER_BYTES];
+
+	memset(buf, 0, FILTER_BYTES);
+
+	/* Clear filter registers. */
+	mcp2515_write_nregs(RXFSIDH(idx), buf, FILTER_BYTES);
+
+	/* Check if mask registers can also be cleared. */
+	mask_idx = (idx < FILTS_OF_MASK0) ? 0 : 1;
+
+	for (i = mask_idx * FILTS_OF_MASK0; i < (mask_idx * FILTS_OF_MASK1 + FILTS_OF_MASK0); i++) {
+		if (!is_filter_empty(i)) {
+			break;
+		}
+	}
+
+	/* All filters of the mask are empty, clear the mask. */
+	if ((mask_idx == 0 && i == FILTS_OF_MASK0) ||
+	    (mask_idx == 1 && i == FILTS_OF_MASK1 + FILTS_OF_MASK0)) {
+		mcp2515_write_nregs(RXMSIDH(mask_idx), buf, FILTER_BYTES);
+	}
+}
+
+/**
+ * Disable mask of filters.
+ * Clear the mask registers will disable filters.
+ *
+ * @rxb_idx: RX buffer index(0 -- RXB0, 1 -- RXB1, 2 -- both)
+ *
+ * NOTE: Only works in configuration mode.
+ */
+void clear_filter_mask(uint8_t rxb_idx)
+{
+	/* Two sets of mask registers */
+	uint8_t buf[FILTER_BYTES * 2];
+
+	memset(buf, 0, FILTER_BYTES * 2);
+
+	if (rxb_idx >= 2) {
+		mcp2515_write_nregs(RXMSIDH(0), buf, FILTER_BYTES * 2);
+	} else {
+		mcp2515_write_nregs(RXMSIDH(rxb_idx), buf, FILTER_BYTES);
+	}
 }
 
 /*
@@ -115,12 +299,13 @@ int set_rx_filter(uint32_t id, uint32_t mask)
  *
  * @txb_idx: TX buffer identifier.
  * @frame: CAN frame to be sent.
+ * @prio: CAN frame priority.
  *
  * TODO:
  *    1. Move RTS to upper level function and manage to send multiple frames.
  *    2. Send payload only if IDs(and others) remain the same.
  */
-void load_frame(int txb_idx, struct can_frame *frame)
+void load_frame(int txb_idx, struct can_frame *frame, enum can_frame_priority prio)
 {
 	uint32_t sid, eid;
 	uint8_t buf[MAX_BUF_LEN];
@@ -128,26 +313,29 @@ void load_frame(int txb_idx, struct can_frame *frame)
 	memset(buf, 0, MAX_BUF_LEN);
 
 	/* Separate standard ID and extended ID if extended frame */
-	if (frame->exide) {
-		sid = frame->id >> CAN_EID_BITS;
-		eid = frame->id & CAN_EID_MASK;
+	if (frame->ident.exide) {
+		sid = frame->ident.id >> CAN_EID_BITS;
+		eid = frame->ident.id & CAN_EID_MASK;
 	} else {
-		sid = frame->id;
+		sid = frame->ident.id;
 		eid = 0;
 	}
 
 	/* Convert CAN frame to transmit buffer form */
 	buf[SIDH] = sid >> SIDH_SHF;
-	buf[SIDL] = (sid << SIDL_SHF) | (frame->exide << EXIDE_SHF) | (eid >> SIDL_EID_SHF);
+	buf[SIDL] = (sid << SIDL_SHF) | (frame->ident.exide << EXIDE_SHF) | (eid >> SIDL_EID_SHF);
 	buf[EID8] = eid >> EID8_SHF;
 	buf[EID0] = eid & BYTE_MASK;
-	buf[DLC] = (frame->rtr << RTR_SHF) | frame->dlc;
+	buf[DLC] = (frame->ident.rtr << RTR_SHF) | frame->dlc;
 
 	/* Copy payload */
 	memcpy(buf + DAT, frame->data, frame->dlc);
 
 	/* Load to registers on the controller */
 	mcp2515_load_txb(buf, frame->dlc + DAT, txb_idx, 0);
+
+	/* Set TX buffer priority. */
+	mcp2515_write_reg(TXBCTRL(txb_idx), prio);
 
 	/* Initiating transmission */
 	mcp2515_rts(1 << txb_idx);
@@ -175,17 +363,17 @@ void receive_frame(int rxb_idx, struct can_frame *frame)
 	sid = (buf[SIDH] << SIDH_SHF) | (buf[SIDL] >> SIDL_SHF);
 
 	/* See if it is an extended frame */
-	frame->exide = buf[SIDL] >> EXIDE_SHF;
-	if (frame->exide) {
+	frame->ident.exide = buf[SIDL] >> EXIDE_SHF;
+	if (frame->ident.exide) {
 		eid = buf[SIDL] << SIDL_EID_SHF | buf[EID8] << EID8_SHF | buf[EID0];
-		frame->id = sid << CAN_EID_BITS | eid;
+		frame->ident.id = sid << CAN_EID_BITS | eid;
 	} else {
-		frame->id = sid;
+		frame->ident.id = sid;
 	}
 
 	/* Remote frames do not have payload */
-	frame->rtr = buf[DLC] >> RTR_SHF;
-	if (frame->rtr) {
+	frame->ident.rtr = buf[DLC] >> RTR_SHF;
+	if (frame->ident.rtr) {
 		frame->dlc = 0;
 	} else {
 		frame->dlc = buf[DLC];

@@ -19,20 +19,39 @@
 #define CAN_MAX_DLC   8
 
 /**
- * Basic CAN frame structure.
+ * Transmission Priority
+ */
+enum can_frame_priority {
+	LOW = 0,
+	MED_LOW,
+	MED_HIGH,
+	HIGH
+};
+
+/** CAN Arbitration Field
  *
  * @id: CAN id(11 bits for standard frame, 29 bits if extended frame).
- * @err: Error frame flag.
- * @rtr: Remote Transmission Request.
  * @exide: Extended frame flag.
+ * @rtr: Remote Transmission Request.
+ * @err: Error frame flag.
+ */
+struct can_id {
+	uint32_t id:29;
+	uint32_t exide:1;
+	uint32_t rtr:1;
+	uint32_t err:1;
+};
+typedef struct can_id can_id_t;
+
+/**
+ * Basic CAN frame structure.
+ *
+ * @ident: Identifier.
  * @dlc: Data Length Code(0 ~ 8).
  * @data: frame payload(8 bytes maximum).
  */
 struct can_frame {
-	uint32_t id:29;
-	uint32_t err:1;
-	uint32_t rtr:1;
-	uint32_t exide:1;
+	struct can_id ident;
 	uint8_t dlc:4;
 	uint8_t data[CAN_MAX_DLC] __attribute__((aligned(8)));
 };

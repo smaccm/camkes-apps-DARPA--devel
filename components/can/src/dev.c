@@ -28,25 +28,41 @@ int can_setup(int baudrate)
 	return 0;
 }
 
+
+void can_send_with_priority(can_frame_t frame, unsigned int prio)
+{
+	load_frame(0, &frame, prio);
+}
+
 void can_send(struct can_frame frame)
 {
-	load_frame(0, &frame);
+	load_frame(0, &frame, 0);
 }
 
 void can_recv(struct can_frame *frame)
 {
-	receive_frame(0, frame);
+	receive_frame(1, frame);
 }
 
-int can_set_filter(unsigned int id, unsigned int mask)
+int can_set_filter(struct can_id id, unsigned int mask)
 {
-	return -1;
+	int ret;
+
+	set_mode(REQOP_CONFIG);
+
+	ret = set_rx_filter(id, mask);
+
+	set_mode(REQOP_NORMAL);
+
+	return ret;
 }
 
 void can_clear_filter(int filter_id)
 {
+	clear_rx_filter(filter_id);
 }
 
 void can_disable_filtering(void)
 {
+	clear_filter_mask(2);
 }

@@ -29,16 +29,20 @@ int run(void)
 	int len = 12;
 	int error = 0;
 	int checksum = 0;
+	struct can_id can_id;
 	struct can_frame tx, rx;
 
 	/* Initialize CAN controller. */
 	printf("Start CAN Loop-back Test\n");
 	can_setup(125000);
 
+	can_id.id = 0xF;
+//	can_set_filter(can_id, 0xF);
+
 	/* Prepare CAN frame. */
-	tx.id = 0x123;
-	tx.exide = 0;
-	tx.rtr = 0;
+	tx.ident.id = 0x123;
+	tx.ident.exide = 0;
+	tx.ident.rtr = 0;
 	tx.dlc = 8;
 	tx.data[0] = 0x08;
 	tx.data[1] = 0x07;
@@ -51,17 +55,17 @@ int run(void)
 		/* Send message */
 		can_send(tx);
 		printf("Send: error(%d), id(%x), data(%x, %x, %x, %x, %x, %x, %x, %x)\n",
-			error, tx.id,
+			error, tx.ident.id,
 			tx.data[0], tx.data[1], tx.data[2], tx.data[3],
 			tx.data[4], tx.data[5], tx.data[6], tx.data[7]);
 		udelay(10000);
 
-		tx.id++;
+		tx.ident.id++;
 
 		/* Receive message */
 		can_recv(&rx);
 		printf("Recv: error(%d), id(%x), data(%x, %x, %x, %x, %x, %x, %x, %x)\n",
-			error, rx.id,
+			error, rx.ident.id,
 			rx.data[0], rx.data[1], rx.data[2], rx.data[3],
 			rx.data[4], rx.data[5], rx.data[6], rx.data[7]);
 		udelay(10000);
