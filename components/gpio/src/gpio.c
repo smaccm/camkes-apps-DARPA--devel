@@ -107,9 +107,9 @@ irq_grp26_event(void* arg){
 
 static void
 irq_grp28_event(void * arg){
-    if(gpio_is_pending(&i_spi_can_int)){
-        gpio_pending_clear(&i_spi_can_int);
-        printf("               <<CAN INT>>\n");
+    if(gpio_is_pending(&i_spi_mpu_int)){
+        gpio_pending_clear(&i_spi_mpu_int);
+        printf("               <<MPU INT>>\n");
         /* TODO: Call handler */
     }
     irq_grp28_int_reg_callback(&irq_grp28_event, NULL);
@@ -117,9 +117,9 @@ irq_grp28_event(void * arg){
 
 static void
 irq_grp31_event(void *arg){
-    if(gpio_is_pending(&i_spi_mpu_int)){
-        gpio_pending_clear(&i_spi_mpu_int);
-        printf("               <<MPU INT>>\n");
+    if(gpio_is_pending(&i_spi_can_int)){
+        gpio_pending_clear(&i_spi_can_int);
+        printf("               <<CAN INT>>\n");
         /* TODO: Call handler */
     }
     irq_grp31_int_reg_callback(&irq_grp31_event, NULL);
