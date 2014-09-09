@@ -119,8 +119,7 @@ static void
 irq_grp31_event(void *arg){
     if(gpio_is_pending(&i_spi_can_int)){
         gpio_pending_clear(&i_spi_can_int);
-        printf("               <<CAN INT>>\n");
-        /* TODO: Call handler */
+	CANInt_emit();
     }
     irq_grp31_int_reg_callback(&irq_grp31_event, NULL);
 }
