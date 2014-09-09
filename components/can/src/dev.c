@@ -22,11 +22,16 @@ int can_setup(int baudrate)
 {
 	mcp2515_reset();
 
-	set_mode(REQOP_CONFIG);
+	/* Wait until reset finishes. */
+	while (1) {
+		if (get_mode() == REQOP_CONFIG) {
+			break;
+		}
+	}
 
 	set_baudrate(125000);
-
 	enable_intrrupt();
+
 	set_mode(REQOP_NORMAL);
 
 	return 0;
@@ -35,17 +40,17 @@ int can_setup(int baudrate)
 
 void can_send_with_priority(can_frame_t frame, unsigned int prio)
 {
-	load_frame(0, &frame, prio);
+	load_txb(0, &frame, prio);
 }
 
 void can_send(struct can_frame frame)
 {
-	load_frame(0, &frame, 0);
+	load_txb(0, &frame, 0);
 }
 
 void can_recv(struct can_frame *frame)
 {
-	receive_frame(1, frame);
+	recv_rxb(0, frame);
 }
 
 int can_set_filter(struct can_id id, unsigned int mask)
@@ -63,10 +68,18 @@ int can_set_filter(struct can_id id, unsigned int mask)
 
 void can_clear_filter(int filter_id)
 {
+	set_mode(REQOP_CONFIG);
+
 	clear_rx_filter(filter_id);
+
+	set_mode(REQOP_NORMAL);
 }
 
 void can_disable_filtering(void)
 {
+	set_mode(REQOP_CONFIG);
+
 	clear_filter_mask(2);
+
+	set_mode(REQOP_NORMAL);
 }

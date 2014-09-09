@@ -305,7 +305,7 @@ void clear_filter_mask(uint8_t rxb_idx)
  *    1. Move RTS to upper level function and manage to send multiple frames.
  *    2. Send payload only if IDs(and others) remain the same.
  */
-void load_frame(int txb_idx, struct can_frame *frame, enum can_frame_priority prio)
+void load_txb(int txb_idx, struct can_frame *frame, enum can_frame_priority prio)
 {
 	uint32_t sid, eid;
 	uint8_t buf[MAX_BUF_LEN];
@@ -351,7 +351,7 @@ void load_frame(int txb_idx, struct can_frame *frame, enum can_frame_priority pr
  *    1. Only receive payload if IDs can be ignored.
  *    2. Check the availability of the RX buffer.
  */
-void receive_frame(int rxb_idx, struct can_frame *frame)
+void recv_rxb(int rxb_idx, struct can_frame *frame)
 {
 	uint32_t sid, eid;
 	uint8_t buf[MAX_BUF_LEN];

@@ -150,8 +150,8 @@ void mcp2515_read_rxb(uint8_t *buf, uint8_t len, uint8_t idx, uint8_t flag);
 /* MCP2515 functions */
 void set_baudrate(int speed);
 void set_mode(enum op_mode mode);
-void load_frame(int txb_idx, struct can_frame *frame, enum can_frame_priority prio);
-void receive_frame(int rxb_idx, struct can_frame *frame);
+void load_txb(int txb_idx, struct can_frame *frame, enum can_frame_priority prio);
+void recv_rxb(int rxb_idx, struct can_frame *frame);
 int set_rx_filter(struct can_id can_id, uint32_t mask);
 void clear_rx_filter(uint8_t idx);
 void clear_filter_mask(uint8_t rxb_idx);
