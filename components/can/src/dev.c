@@ -20,11 +20,15 @@ void can__init(void)
 
 int can_setup(int baudrate)
 {
+	mcp2515_reset();
+
 	set_mode(REQOP_CONFIG);
 
 	set_baudrate(125000);
 
+	enable_intrrupt();
 	set_mode(REQOP_NORMAL);
+
 	return 0;
 }
 

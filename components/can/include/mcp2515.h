@@ -156,6 +156,9 @@ int set_rx_filter(struct can_id can_id, uint32_t mask);
 void clear_rx_filter(uint8_t idx);
 void clear_filter_mask(uint8_t rxb_idx);
 
+/* Interrupt functions */
+void enable_intrrupt(void);
+
 /****************************************************************************/
 /* the set macro */
 #define CAN_SET_VAL(REG_FIELD, val)    (((val) << CAN_##REG_FIELD##_SHIFT) & CAN_##REG_FIELD##_MASK)
