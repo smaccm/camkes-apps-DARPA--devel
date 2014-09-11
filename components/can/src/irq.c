@@ -12,6 +12,7 @@
 #include <stdio.h>
 
 #include "mcp2515.h"
+#include <queue.h>
 
 #include "can.h"
 
@@ -19,66 +20,128 @@
 #define RXIF_MASK (CANINTF_RX0IF | CANINTF_RX1IF)
 #define TXIF_SHF  2
 
+#define TXB_NUM  3 //Number of TX buffers on the controller.
+
 static void message_error_recovery(void)
 {
 	printf("%s\n", __func__);
+	/* Clear interrupt flags */
+	mcp2515_bit_modify(CANINTF, CANINTE_MERRE, 0);
 }
 
 static void error_recovery(void)
 {
 	printf("%s\n", __func__);
+	/* Clear interrupt flags */
+	mcp2515_bit_modify(CANINTF, CANINTF_ERRIF, 0);
 }
 
+/**
+ * Put message queue into TXB.
+ *
+ * @tx: TXB bits(Bit 0 -- TXB0, Bit 1 -- TXB1, Bit 2 -- TXB2)
+ */
 static void transmit_message(uint8_t tx)
 {
-	printf("%s: %x\n", __func__, tx);
+	struct can_frame frame;
+	uint8_t rts = 0;
+
+	/* Load messages into empty TX buffers. */
+	for (int i = 0; i < TXB_NUM; i++) {
+		if (tx & BIT(i)) {
+			if (tx_queue_pop(&frame)) {
+				load_txb(i, &frame, 0);
+				rts |= BIT(i);
+			} else {
+				/* Nothing to send */
+				break;
+			}
+		}
+	}
+
+	/* Clear interrupt flags */
+	mcp2515_bit_modify(CANINTF, rts << TXIF_SHF, 0);
+
+	/* Initiating transmission */
+	mcp2515_rts(rts);
 }
 
+/**
+ * Put RXB into message queue.
+ *
+ * @rx: RXB bits(0 -- None, 1 -- RXB0, 2 -- RXB1, 3 -- Both)
+ */
 static void receive_message(uint8_t rx)
 {
-	printf("%s: %x\n", __func__, rx);
+	struct can_frame frame;
+	int ret = 0;
+
+	if (rx & BIT(0)) {
+		recv_rxb(0, &frame);
+		ret += rx_queue_push(&frame);
+	}
+
+	if (rx & BIT(1)) {
+		recv_rxb(1, &frame);
+		ret += rx_queue_push(&frame);
+	}
+
+	/* If the RX queue is full, warn user. */
+	if (ret) {
+		printf("CAN: Drop %d message(s).\n", -ret);
+	}
+
+	/* Clear interrupt flags */
+	mcp2515_bit_modify(CANINTF, rx, 0);
 }
 
-static void irq_handler(void *arg)
+/**
+ * IRQ handler
+ *
+ * NOTE: The interrupt flags are cleared individually because
+ *       some of the operations may change the interrupt flags on the
+ *       controller while we are still in the interrupt handler. Hence
+ *       it will cause wrong interrupt acknowledgement. Note that, disabling
+ *       the interrupts won't help, CANINTF is independent to CANINTE,
+ *       it will change anyway.
+ */
+static void irq_handler(void *arg UNUSED)
 {
 	uint8_t flags;
-	uint8_t mask = 0;
 
 	/* Read interrupt flags */
 	flags = mcp2515_read_reg(CANINTF);
-	printf("%s: %x\n", __func__, flags);
 
 	if (flags & CANINTF_MERRF) {
 		message_error_recovery();
-		mask |= CANINTF_MERRF;
 	}
 
 	if (flags & CANINTF_WAKIF) {
-		/* XXX: Not implemented */
-		mask |= CANINTF_WAKIF;
+		/* 
+		 * XXX: Not implemented
+		 * Clear interrupt flags
+		 */
+		mcp2515_bit_modify(CANINTF, CANINTF_WAKIF, 0);
 	}
 
 	if (flags & CANINTF_ERRIF) {
 		error_recovery();
-		mask |= CANINTF_ERRIF;
 	}
 
 	if (flags & TXIF_MASK) {
 		transmit_message((flags & TXIF_MASK) >> TXIF_SHF);
-		mask |= (flags & TXIF_MASK);
 	}
 
 	if (flags & RXIF_MASK) {
 		receive_message(flags & RXIF_MASK);
-		mask |= (flags & RXIF_MASK);
 	}
-
-	/* Clear interrupt flags */
-	mcp2515_bit_modify(CANINTF, mask, 0);
 
 	Int_reg_callback(irq_handler, NULL);
 }
 
+/**
+ * Enable all interrupts except "wake up".
+ */
 void enable_intrrupt(void)
 {
 	uint8_t val;

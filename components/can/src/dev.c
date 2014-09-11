@@ -11,11 +11,16 @@
 #include <can_inf.h>
 
 #include <mcp2515.h>
+#include <queue.h>
+
 #include <can.h>
+
+#define MSG_QUEUE_SIZE  10
 
 void can__init(void)
 {
 	printf("CAN device started...\n");
+	mq_init(MSG_QUEUE_SIZE);
 }
 
 int can_setup(int baudrate)
@@ -34,23 +39,27 @@ int can_setup(int baudrate)
 
 	set_mode(REQOP_NORMAL);
 
+	mcp2515_bit_modify(CANINTF, CANINTF_TX0IF, 0xFF);
+
 	return 0;
 }
 
-
 void can_send_with_priority(can_frame_t frame, unsigned int prio)
 {
+	/* FIXME: Not compatible with message buffering.
+	 *        Disable interrupt send message and re-enable.
+	 */
 	load_txb(0, &frame, prio);
 }
 
 void can_send(struct can_frame frame)
 {
-	load_txb(0, &frame, 0);
+	while (tx_queue_push(&frame) < 0);
 }
 
 void can_recv(struct can_frame *frame)
 {
-	recv_rxb(0, frame);
+	while (rx_queue_pop(frame) == NULL);
 }
 
 int can_set_filter(struct can_id id, unsigned int mask)

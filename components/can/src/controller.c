@@ -336,9 +336,6 @@ void load_txb(int txb_idx, struct can_frame *frame, enum can_frame_priority prio
 
 	/* Set TX buffer priority. */
 	mcp2515_write_reg(TXBCTRL(txb_idx), prio);
-
-	/* Initiating transmission */
-	mcp2515_rts(1 << txb_idx);
 }
 
 /**
