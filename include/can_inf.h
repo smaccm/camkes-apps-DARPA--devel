@@ -47,11 +47,16 @@ typedef struct can_id can_id_t;
  * Basic CAN frame structure.
  *
  * @ident: Identifier.
+ * @prio: Transmit priority.
  * @dlc: Data Length Code(0 ~ 8).
  * @data: frame payload(8 bytes maximum).
+ *
+ * NOTE: The priority is MCP2515 only, it is not related to any prioritization
+ *       implicit in the CAN protocol.
  */
 struct can_frame {
 	struct can_id ident;
+	uint8_t prio:2;
 	uint8_t dlc:4;
 	uint8_t data[CAN_MAX_DLC] __attribute__((aligned(8)));
 };

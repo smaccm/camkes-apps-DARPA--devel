@@ -50,7 +50,7 @@ static void transmit_message(uint8_t tx)
 	for (int i = 0; i < TXB_NUM; i++) {
 		if (tx & BIT(i)) {
 			if (tx_queue_pop(&frame)) {
-				load_txb(i, &frame, 0);
+				load_txb(i, &frame);
 				rts |= BIT(i);
 			} else {
 				/* Nothing to send */

@@ -44,14 +44,6 @@ int can_setup(int baudrate)
 	return 0;
 }
 
-void can_send_with_priority(can_frame_t frame, unsigned int prio)
-{
-	/* FIXME: Not compatible with message buffering.
-	 *        Disable interrupt send message and re-enable.
-	 */
-	load_txb(0, &frame, prio);
-}
-
 void can_send(struct can_frame frame)
 {
 	while (tx_queue_push(&frame) < 0);

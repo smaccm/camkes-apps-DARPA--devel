@@ -299,13 +299,12 @@ void clear_filter_mask(uint8_t rxb_idx)
  *
  * @txb_idx: TX buffer identifier.
  * @frame: CAN frame to be sent.
- * @prio: CAN frame priority.
  *
  * TODO:
  *    1. Move RTS to upper level function and manage to send multiple frames.
  *    2. Send payload only if IDs(and others) remain the same.
  */
-void load_txb(int txb_idx, struct can_frame *frame, enum can_frame_priority prio)
+void load_txb(int txb_idx, struct can_frame *frame)
 {
 	uint32_t sid, eid;
 	uint8_t buf[MAX_BUF_LEN];
@@ -335,7 +334,7 @@ void load_txb(int txb_idx, struct can_frame *frame, enum can_frame_priority prio
 	mcp2515_load_txb(buf, frame->dlc + DAT, txb_idx, 0);
 
 	/* Set TX buffer priority. */
-	mcp2515_write_reg(TXBCTRL(txb_idx), prio);
+	mcp2515_write_reg(TXBCTRL(txb_idx), frame->prio);
 }
 
 /**
