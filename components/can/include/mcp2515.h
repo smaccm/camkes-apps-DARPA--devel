@@ -159,6 +159,7 @@ void clear_filter_mask(uint8_t rxb_idx);
 
 /* Interrupt functions */
 void enable_intrrupt(void);
+void start_xmit_irq(void);
 
 /****************************************************************************/
 /* the set macro */

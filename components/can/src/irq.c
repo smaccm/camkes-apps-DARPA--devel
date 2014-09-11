@@ -162,3 +162,11 @@ void enable_intrrupt(void)
 
 	Int_reg_callback(irq_handler, NULL);
 }
+
+/**
+ * Start TX interrupt delivery.
+ */
+void start_xmit_irq(void)
+{
+	mcp2515_bit_modify(CANINTF, TXIF_MASK, 0xFF);
+}

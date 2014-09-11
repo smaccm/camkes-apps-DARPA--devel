@@ -39,7 +39,7 @@ int can_setup(int baudrate)
 
 	set_mode(REQOP_NORMAL);
 
-	mcp2515_bit_modify(CANINTF, CANINTF_TX0IF, 0xFF);
+	start_xmit_irq();
 
 	return 0;
 }
