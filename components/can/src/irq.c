@@ -22,16 +22,67 @@
 
 #define TXB_NUM  3 //Number of TX buffers on the controller.
 
-static void message_error_recovery(void)
+/**
+ * Message error
+ *
+ * This error is intended to be used for detecting baud rate in Listen-only
+ * mode.
+ */
+static void report_message_error(void)
 {
 	printf("%s\n", __func__);
+	enum op_mode mode;
+
+	mode = get_mode();
+	if (mode == REQOP_LISTEN) {
+		set_mode(REQOP_CONFIG);
+		/* Auto baud rate detection. */
+		set_mode(REQOP_LISTEN);
+	}
+
 	/* Clear interrupt flags */
 	mcp2515_bit_modify(CANINTF, CANINTE_MERRE, 0);
 }
 
-static void error_recovery(void)
+/**
+ * Report errors
+ *
+ * MCP2515 does automatic error recovery when the it enters bus-off mode.
+ * There is nothing we can do other than report to the user.
+ */
+static void report_error(void)
 {
-	printf("%s\n", __func__);
+	uint8_t flags;
+
+	/* Read the error flag */
+	flags = mcp2515_read_reg(EFLG);
+
+	if (flags & (EFLG_RX0OVR | EFLG_RX1OVR)) {
+		printf("CAN: Receive buffer overflow!\n");
+		/* Overflow flags need to be cleared manually. */
+		mcp2515_bit_modify(EFLG, flags & (EFLG_RX0OVR | EFLG_RX1OVR), 0);
+	}
+
+	if (flags & EFLG_TXBO) {
+		printf("CAN: Enter Bus-off mode, too many errors.\n");
+	}
+
+	if (flags & EFLG_RXEP) {
+		printf("CAN: Enter receive error-passive mode.\n");
+	}
+
+	if (flags & EFLG_TXEP) {
+		printf("CAN: Enter transmit error-passive mode.\n");
+	}
+
+	if (flags & EFLG_TXWAR) {
+		printf("CAN: Transmit error warning.\n");
+	}
+
+	if (flags & EFLG_RXWAR) {
+		printf("CAN: Receive error warning.\n");
+	}
+
 	/* Clear interrupt flags */
 	mcp2515_bit_modify(CANINTF, CANINTF_ERRIF, 0);
 }
@@ -113,7 +164,7 @@ static void irq_handler(void *arg UNUSED)
 	flags = mcp2515_read_reg(CANINTF);
 
 	if (flags & CANINTF_MERRF) {
-		message_error_recovery();
+		report_message_error();
 	}
 
 	if (flags & CANINTF_WAKIF) {
@@ -125,7 +176,7 @@ static void irq_handler(void *arg UNUSED)
 	}
 
 	if (flags & CANINTF_ERRIF) {
-		error_recovery();
+		report_error();
 	}
 
 	if (flags & TXIF_MASK) {

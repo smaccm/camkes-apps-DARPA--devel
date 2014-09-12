@@ -94,6 +94,20 @@
 #define CANINTF_RX1IF  BIT(1) //Receive buffer 1 full interrupt flag
 #define CANINTF_RX0IF  BIT(0) //Receive buffer 0 full interrupt flag
 
+/* Error detection */
+#define TEC   0x1C //Transmit error counter
+#define REC   0x1D //Receiver error counter
+#define EFLG  0x2D //Error flag
+
+#define EFLG_RX1OVR  BIT(7) //Receive buffer 1 overflow flag
+#define EFLG_RX0OVR  BIT(6) //Receive buffer 0 overflow flag
+#define EFLG_TXBO    BIT(5) //Bus-off error flag
+#define EFLG_TXEP    BIT(4) //Transmit error-passive flag
+#define EFLG_RXEP    BIT(3) //Receive error-passive flag
+#define EFLG_TXWAR   BIT(2) //Transmit error warning flag
+#define EFLG_RXWAR   BIT(1) //Receive error warning flag
+#define EFLG_EWARN   BIT(0) //Error warning flag
+
 /* Bit timing registers */
 #define CNF1  0x2A //Bit timing configuration 1
 #define CNF2  0x29 //Bit timing configuration 2
