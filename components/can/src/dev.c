@@ -34,7 +34,7 @@ int can_setup(int baudrate)
 		}
 	}
 
-	set_baudrate(125000);
+	set_baudrate(baudrate);
 	enable_intrrupt();
 
 	set_mode(REQOP_NORMAL);
