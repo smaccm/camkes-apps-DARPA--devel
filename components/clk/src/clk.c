@@ -15,42 +15,17 @@
 
 clock_sys_t clock_sys;
 
-static int set_spi_clock(int periph_id, unsigned long rate)
-{
-    volatile uint32_t *base = (uint32_t*)cmu_top_clk;
-    uint32_t r, rpre, v;
-    int fin;
-    int div;
-
-    fin = 24000000; /* XXTI */
-    /* SPI has a Fixed /2 dividor */
-    fin /= 2;
-    /* The division we are after */
-    div = fin / rate;
-    /* Tune PRE_RATIO with RATIO at maximum */
-    rpre = (div / 0xf);
-    /* Now tune RATIO */
-    r = div / (rpre + 1);
-
-    /* Apply the change */
-    v = base[0x55C/4];
-    v &= 0xffff;
-    v |= rpre << 24 | r << 16;
-    base[0x55C/4] = v; 
-
-    /* Read it back */
-    rpre = (v >> 24) & 0xf;
-    r = (v >> 16) & 0xf;
-    return fin / (rpre + 1) / (r + 1);
-}
-
 unsigned int clktree_get_spi1_freq(void){
-    return 0;
+    clk_t* clk;
+    clk = clk_get_clock(&clock_sys, CLK_SPI1);
+    return clk_get_freq(clk);
 }
 
 
 unsigned int clktree_set_spi1_freq(unsigned int rate){
-    return set_spi_clock(0, rate); 
+    clk_t* clk;
+    clk = clk_get_clock(&clock_sys, CLK_SPI1);
+    return clk_set_freq(clk, rate);
 }
 
 

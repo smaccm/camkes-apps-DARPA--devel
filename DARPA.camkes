@@ -181,8 +181,15 @@ assembly {
               gpiobase_obj.irq_grp31_int_attributes     =       63;                     //Combined IRQ group 31
               gpiobase_obj.xint16_31_int_attributes     =       64;                     //Extern Interrupt EINT16-EINT31
              
+          //    uartbase_obj.uart0base_attributes 	= 	"0x12C00000:0x1000";    //UART0
               uartbase_obj.uart0base_attributes 	= 	"0x12C10000:0x1000";    //UART1
+          //    uartbase_obj.uart0base_attributes 	= 	"0x12C20000:0x1000";    //UART2
+          //    uartbase_obj.uart0base_attributes 	= 	"0x12C30000:0x1000";    //UART3
+
+          //    uartbase_obj.interrupt_attributes 	= 	83;                     //UART0 interrupt
               uartbase_obj.interrupt_attributes 	= 	84;                     //UART1 interrupt
+          //    uartbase_obj.interrupt_attributes 	= 	85;                     //UART2 interrupt
+          //    uartbase_obj.interrupt_attributes 	= 	86;                     //UART3 interrupt
               
               spibase_obj.spi1_reg_attributes 		= 	"0x12D30000:0x1000";	//SPI1
               spibase_obj.spi1_int_attributes 		= 	101;			//SPI1  interrupt 
