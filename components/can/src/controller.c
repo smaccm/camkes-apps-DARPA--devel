@@ -78,7 +78,15 @@ static void hw_set_bit_timing(uint8_t sjw, uint8_t brp, uint8_t propseg,
 {
 	uint8_t cnf[3];
 
-	cnf[2] = ((sjw - 1) << CNF1_SJW_SHF) | (brp - 1);
+	/* Convert into register's length bits. */
+	sjw--;
+	brp--;
+	propseg--;
+	phseg1--;
+	phseg2--;
+
+	/* Get the CNF registers' value. */
+	cnf[2] = (sjw << CNF1_SJW_SHF) | brp;
 	cnf[1] = CNF2_BTLMODE | phseg1 << CNF2_PHSEG1_SHF | propseg;
 	cnf[0] = phseg2;
 
@@ -167,54 +175,85 @@ static void write_to_filter(uint8_t idx, struct can_id can_id, uint32_t mask)
 /**
  * Set CAN baud rate
  *
- * FIXME: hard code to 125000bps, add calculation.
+ * Inspired by http://karmacarpentry.com/can_calc.html
+ *
+ * According to the CAN specification 2.0 part B,
+ * SyncSeg is fixed at 1 TQ(Time Quantum),
+ * ProSeg is from 1 ~ 8 TQ,
+ * PhSeg1 is from 1 ~ 8 TQ,
+ * PhSeg2 is from 2 ~ 8 TQ.
  */
-#define OSC_FREQ  16000000U //Crystal on the daughter board 20MHz.
-#define NS_IN_SEC 1000000000U //Number of nanosecond per second.
-#define TIME_PER_TICK DIV_ROUND(NS_IN_SEC, OSC_FREQ)
-#define MIN_TQ_NUM  8
-#define MAX_TQ_NUM  25
+#define OSC_FREQ   20000000U   //Crystal on the daughter board 20MHz.
+#define NS_IN_SEC  1000000000U //Number of nanosecond per second.
+#define TIME_PER_TICK  DIV_ROUND(NS_IN_SEC, OSC_FREQ)
+#define MIN_TQ_NUM    8  //Minimum number of Time Quantum possible.
+#define MAX_TQ_NUM    25 //Maximum number of Time Quantum possible.
+#define SAMPLE_POINT  30 //Percentage of the sample point towards the end of NBT.
 void set_baudrate(uint32_t baudrate)
 {
-	uint8_t brp = 0, cur_brp, tq_num = MIN_TQ_NUM;
-	uint32_t tq_time, tq_tick = 0, bit_time;
-	uint32_t error, min_error = 0xFFFFFFFF;
-	uint8_t sum, propseg, phseg1, phseg2;
+	uint8_t brp = 0;   //Baud rate pre-scaler.
+	uint32_t tq_time;  //Number of nanoseconds per TQ.
+	uint32_t bit_time; //Nanoseconds that transfer one bit.
+	uint32_t error;    //Calculation error.
+	uint32_t min_error = 0xFFFFFFFF; //Minimum error.
+	uint8_t tq_num = MIN_TQ_NUM;     //Number of TQ in the Nominal Bit Time(NBT).
+	uint8_t propseg, phseg1, phseg2;
 
-	/* Find a BRP with minimum timing error. */
+	/* Find the BRP and number of TQ with minimum timing error. */
 	bit_time = DIV_ROUND(NS_IN_SEC, baudrate);
 	for (int i = MIN_TQ_NUM; i <= MAX_TQ_NUM; ++i) {
-		cur_brp = DIV_ROUND(OSC_FREQ, (2 * baudrate * i));
 		tq_time = DIV_ROUND(bit_time, i);
-		tq_tick = DIV_ROUND(tq_time, TIME_PER_TICK);
 
-		error = abs(tq_time - tq_tick * TIME_PER_TICK);
-		if (error < min_error && cur_brp > 0) {
+		/*
+		 * There is an error when we convert "ticks" to "nanoseconds".
+		 * The maximum error should be TIME_PER_TICK / 2
+		 */
+		error = tq_time % TIME_PER_TICK;
+		if (2 * error > TIME_PER_TICK) {
+			error = TIME_PER_TICK - error;
+		}
+
+		/* Choose the minimum one. */
+		if (error < min_error) {
 			min_error = error;
-			brp = cur_brp;
 			tq_num = i;
 		}
-		printf("CALC(%u): %d, %u, %u, %u\n", cur_brp, i, tq_time, tq_tick, error);
 	}
 
-	sum = tq_num - 1;
-	phseg2 = DIV_ROUND(sum * 30, 100);
-	propseg = 2;
-	phseg1 = sum - propseg - phseg2;
-	while (phseg1 > 8) {
-		propseg++;
-		phseg1--;
-	}
-	if (phseg1 < phseg2) {
-		propseg = 1;
-		phseg1++;
+	/*
+	 * Base TQ equals twice the crystal period.
+	 * TQ = 2 * BRP * TIME_PER_TICK = 2 * BRP / OSC_FREQ
+	 */
+	brp = DIV_ROUND(OSC_FREQ, (2 * baudrate * tq_num));
+
+	/*
+	 * Nominal Bit Time(NBT) is n times of TQ.
+	 * n = syncseg + propseg + phseg1 + phseg2
+	 *
+	 * Sample point is at the start of phseg2 which should be
+	 * at around 70% of the NBT.
+	 */
+	phseg2 = DIV_ROUND(tq_num * SAMPLE_POINT, 100);
+
+	/* phseg1 should be always greater or equal to phseg2. */
+	phseg1 = phseg2;
+	propseg = tq_num - 1 - phseg1 - phseg2;
+
+	/*
+	 * Propseg is recommended to be small, ideally be 2.
+	 * It is defined as twice the sum of the signal's propagation
+	 * time on the bus line, including the bus driver delay.
+	 */
+	if (propseg > 2) {
+		phseg1 += (propseg - 2);
+		propseg = 2;
 	}
 
-	printf("%s: brp(%u), propseg(%u), phseg1(%u), phseg2(%u)\n",
-		__func__, brp, propseg, phseg1, phseg2);
-//	hw_set_bit_timing(1, brp, propseg, phseg1, phseg2);
-//	hw_set_bit_timing(1, 5, 2, 7, 6);
-	hw_set_bit_timing(1, 8, 0, 3, 3);
+	/*
+	 * Always set SJW to 1, larger values are for those inaccurate
+	 * and unstable clocks.
+	 */
+	hw_set_bit_timing(1, brp, propseg, phseg1, phseg2);
 }
 
 /**
