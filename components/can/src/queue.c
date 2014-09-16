@@ -101,14 +101,12 @@ int tx_queue_push(struct can_frame *frame)
 {
 	int ret = -1;
 
-	sync_spinlock_lock(&txq->lock);
-
 	if (!mq_is_full(txq)) {
+		sync_spinlock_lock(&txq->lock);
 		mq_append_msg(txq, frame);
+		sync_spinlock_unlock(&txq->lock);
 		ret = 0;
 	}
-
-	sync_spinlock_unlock(&txq->lock);
 
 	return ret;
 }
@@ -128,14 +126,12 @@ struct can_frame *tx_queue_pop(struct can_frame *frame)
 {
 	struct can_frame *frm = NULL;
 
-	sync_spinlock_lock(&txq->lock);
-
 	if (!mq_is_empty(txq)) {
+		sync_spinlock_lock(&txq->lock);
 		mq_remove_msg(txq, frame);
+		sync_spinlock_unlock(&txq->lock);
 		frm = frame;
 	}
-
-	sync_spinlock_unlock(&txq->lock);
 
 	return frm;
 }
@@ -154,14 +150,12 @@ int rx_queue_push(struct can_frame *frame)
 {
 	int ret = -1;
 
-	sync_spinlock_lock(&rxq->lock);
-
 	if (!mq_is_full(rxq)) {
+		sync_spinlock_lock(&rxq->lock);
 		mq_append_msg(rxq, frame);
+		sync_spinlock_unlock(&rxq->lock);
 		ret = 0;
 	}
-
-	sync_spinlock_unlock(&rxq->lock);
 
 	return ret;
 }
@@ -180,14 +174,12 @@ struct can_frame *rx_queue_pop(struct can_frame *frame)
 {
 	struct can_frame *frm = NULL;
 
-	sync_spinlock_lock(&rxq->lock);
-
 	if (!mq_is_empty(rxq)) {
+		sync_spinlock_lock(&rxq->lock);
 		mq_remove_msg(rxq, frame);
+		sync_spinlock_unlock(&rxq->lock);
 		frm = frame;
 	}
-
-	sync_spinlock_unlock(&rxq->lock);
 
 	return frm;
 }

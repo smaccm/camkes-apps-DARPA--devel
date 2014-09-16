@@ -39,14 +39,17 @@ int can_setup(int baudrate)
 
 	set_mode(REQOP_NORMAL);
 
-	start_xmit_irq();
-
 	return 0;
 }
 
 void can_send(struct can_frame frame)
 {
-	while (tx_queue_push(&frame) < 0);
+	int ret;
+
+	do {
+		ret = tx_queue_push(&frame);
+		start_xmit();
+	} while (ret < 0);
 }
 
 void can_recv(struct can_frame *frame)

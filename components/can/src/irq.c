@@ -11,6 +11,8 @@
 #include <stdint.h>
 #include <stdio.h>
 
+#include <sync/spinlock.h>
+
 #include "mcp2515.h"
 #include <queue.h>
 
@@ -21,6 +23,9 @@
 #define TXIF_SHF  2
 
 #define TXB_NUM  3 //Number of TX buffers on the controller.
+
+static volatile uint8_t xmit_stopped = 1;
+static sync_spinlock_t txb_lock = 0;
 
 /**
  * Message error
@@ -97,21 +102,26 @@ static void transmit_message(uint8_t tx)
 	struct can_frame frame;
 	uint8_t rts = 0;
 
+	/* Clear interrupt flags */
+	mcp2515_bit_modify(CANINTF, tx << TXIF_SHF, 0);
+
 	/* Load messages into empty TX buffers. */
 	for (int i = 0; i < TXB_NUM; i++) {
 		if (tx & BIT(i)) {
 			if (tx_queue_pop(&frame)) {
+				/* Make sure the previous message is sent. */
+				while (mcp2515_read_reg(TXBCTRL(i) & TXBCTRL_TXREQ));
 				load_txb(i, &frame);
 				rts |= BIT(i);
 			} else {
-				/* Nothing to send */
+				/* The TX queue is empty, stop transmission. */
+				sync_spinlock_lock(&txb_lock);
+				xmit_stopped = 1;
+				sync_spinlock_unlock(&txb_lock);
 				break;
 			}
 		}
 	}
-
-	/* Clear interrupt flags */
-	mcp2515_bit_modify(CANINTF, rts << TXIF_SHF, 0);
 
 	/* Initiating transmission */
 	mcp2515_rts(rts);
@@ -217,7 +227,18 @@ void enable_intrrupt(void)
 /**
  * Start TX interrupt delivery.
  */
-void start_xmit_irq(void)
+void start_xmit(void)
 {
-	mcp2515_bit_modify(CANINTF, TXIF_MASK, 0xFF);
+	/* Restart transmission if it is disabled. */
+	if (xmit_stopped) {
+		sync_spinlock_lock(&txb_lock);
+		/* Find empty TX buffer, trigger interrupt. */
+		for (int i = 0; i < TXB_NUM; i++) {
+			if (!(mcp2515_read_reg(TXBCTRL(i)) & TXBCTRL_TXREQ)) {
+				mcp2515_bit_modify(CANINTF, CANINTF_TX0IF << i, 0xFF);
+				xmit_stopped = 0;
+			}
+		}
+		sync_spinlock_unlock(&txb_lock);
+	}
 }
