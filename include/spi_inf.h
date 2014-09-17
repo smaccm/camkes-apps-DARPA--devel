@@ -26,6 +26,4 @@ typedef struct spi_buf_t{
     volatile bool lock;                    //shared buffer lock
 }spi_dev_port, *spi_dev_port_p;
 
-
-
 #endif

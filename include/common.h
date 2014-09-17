@@ -12,9 +12,9 @@
 #define COMMON_H
 
 /* Application IDs*/
-#define CLIENT_APP_ID	0
-#define CAN_APP_ID		1
-#define NUM_APPS		2
+#define CLIENT_APP_ID  0
+#define CAN_APP_ID     1
+#define NUM_APPS       2
 
 /* Generic Constants */
 #define TRUE 	1
@@ -30,16 +30,5 @@ typedef enum{
 #define DIV_ROUND(n,d)		(((n) + ((d)/2)) / (d))
 #define DIV_ROUND_UP(n,d)	(((n) + (d) - 1) / (d))
 #define roundup(x, y)		((((x) + ((y) - 1)) / (y)) * (y))
-
-/**
- * container_of - cast a member of a structure out to the containing structure
- * @ptr:	the pointer to the member.
- * @type:	the type of the container struct this is embedded in.
- * @member:	the name of the member within the struct.
- *
- */
-#define container_of(ptr, type, member) ({			\
-	const typeof( ((type *)0)->member ) *__mptr = (ptr);	\
-	(type *)( (char *)__mptr - offsetof(type,member) );})
 
 #endif
