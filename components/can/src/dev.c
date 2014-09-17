@@ -15,7 +15,7 @@
 
 #include <can.h>
 
-#define MSG_QUEUE_SIZE  10
+#define MSG_QUEUE_SIZE  128
 
 void can__init(void)
 {
