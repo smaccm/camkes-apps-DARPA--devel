@@ -15,18 +15,21 @@
 #include <stdio.h>
 #include <string.h>
 
-#include "can.h"
+#include <sync/spinlock.h>
 
+#include "can.h"
 #include "mcp2515.h"
 #include "spi_inf.h"
 #include "common.h"
 
 #define DEV_ID CAN_APP_ID
 static spi_dev_port *spi_dev = NULL;
+static sync_spinlock_t spi_lock = 0;
 
 void spi__init(void)
 {
 	spi_dev = (spi_dev_port*)spi_can;
+	sync_spinlock_init(&spi_lock);
 }
 
 /*
@@ -34,19 +37,31 @@ void spi__init(void)
  */
 void mcp2515_reset(void)
 {
+	sync_spinlock_lock(&spi_lock);
+
 	spi_dev->txbuf[0] = CMD_RESET;
 	spi_transfer(DEV_ID, 1, 0);
+
+	sync_spinlock_unlock(&spi_lock);
 }
 
 /* Read register */
 uint8_t mcp2515_read_reg(uint8_t reg)
 {
+	uint8_t ret;
+
+	sync_spinlock_lock(&spi_lock);
+
 	spi_dev->txbuf[0] = CMD_READ;
 	spi_dev->txbuf[1] = reg;
 
 	spi_transfer(DEV_ID, 2, 1);
 
-	return spi_dev->rxbuf[2];
+	ret = spi_dev->rxbuf[2];
+
+	sync_spinlock_unlock(&spi_lock);
+
+	return ret;
 }
 
 /* Read registers in series */
@@ -57,22 +72,30 @@ void mcp2515_read_nregs(uint8_t reg, int count, uint8_t *buf)
 		return;
 	}
 
+	sync_spinlock_lock(&spi_lock);
+
 	spi_dev->txbuf[0] = CMD_READ;
 	spi_dev->txbuf[1] = reg;
 
 	spi_transfer(DEV_ID, 2, count);
 
 	memcpy(buf, &spi_dev->rxbuf[2], count);
+
+	sync_spinlock_unlock(&spi_lock);
 }
 
 /* Write to register. */
 void mcp2515_write_reg(uint8_t reg, uint8_t val)
 {
+	sync_spinlock_lock(&spi_lock);
+
 	spi_dev->txbuf[0] = CMD_WRITE;
 	spi_dev->txbuf[1] = reg;
 	spi_dev->txbuf[2] = val;
 
 	spi_transfer(DEV_ID, 3, 0);
+
+	sync_spinlock_unlock(&spi_lock);
 }
 
 /* Write to registers. */
@@ -83,12 +106,16 @@ void mcp2515_write_nregs(uint8_t reg, uint8_t *buf, int count)
 		return;
 	}
 
+	sync_spinlock_lock(&spi_lock);
+
 	spi_dev->txbuf[0] = CMD_WRITE;
 	spi_dev->txbuf[1] = reg;
 
 	memcpy(&spi_dev->txbuf[2], buf, count);
 
 	spi_transfer(DEV_ID, 2 + count, 0);
+
+	sync_spinlock_unlock(&spi_lock);
 }
 
 /* Bit Modify Instruction:
@@ -100,12 +127,16 @@ void mcp2515_write_nregs(uint8_t reg, uint8_t *buf, int count)
  */
 void mcp2515_bit_modify(uint8_t reg, uint8_t mask, uint8_t val)
 {
+	sync_spinlock_lock(&spi_lock);
+
 	spi_dev->txbuf[0] = CMD_BIT_MODIFY;
 	spi_dev->txbuf[1] = reg;
 	spi_dev->txbuf[2] = mask;
 	spi_dev->txbuf[3] = val;
 
 	spi_transfer(DEV_ID, 4, 0);
+
+	sync_spinlock_unlock(&spi_lock);
 }
 
 /*
@@ -126,11 +157,19 @@ void mcp2515_bit_modify(uint8_t reg, uint8_t mask, uint8_t val)
  */
 uint8_t mcp2515_read_status(void)
 {
+	uint8_t ret;
+
+	sync_spinlock_lock(&spi_lock);
+
 	spi_dev->txbuf[0] = CMD_READ_STATUS;
 
 	spi_transfer(DEV_ID, 1, 1);
 
-	return spi_dev->rxbuf[1];
+	ret = spi_dev->rxbuf[1];
+
+	sync_spinlock_unlock(&spi_lock);
+
+	return ret;
 }
 
 /*
@@ -165,11 +204,19 @@ uint8_t mcp2515_read_status(void)
  */
 uint8_t mcp2515_rx_status(void)
 {
+	uint8_t ret;
+
+	sync_spinlock_lock(&spi_lock);
+
 	spi_dev->txbuf[0] = CMD_RX_STATUS;
 
 	spi_transfer(DEV_ID, 1, 1);
 
-	return spi_dev->rxbuf[1];
+	ret = spi_dev->rxbuf[1];
+
+	sync_spinlock_unlock(&spi_lock);
+
+	return ret;
 }
 
 /**
@@ -179,8 +226,12 @@ uint8_t mcp2515_rx_status(void)
  */
 void mcp2515_rts(uint8_t mask)
 {
+	sync_spinlock_lock(&spi_lock);
+
 	spi_dev->txbuf[0] = CMD_RTS | mask;
 	spi_transfer(DEV_ID, 1, 0);
+
+	sync_spinlock_unlock(&spi_lock);
 }
 
 /**
@@ -201,11 +252,15 @@ void mcp2515_load_txb(uint8_t *buf, uint8_t len, uint8_t idx, uint8_t flag)
 	 */
 	uint8_t mask = (idx * 2) | flag;
 
+	sync_spinlock_lock(&spi_lock);
+
 	spi_dev->txbuf[0] = CMD_LOAD_TXB | mask;
 	memcpy(spi_dev->txbuf + 1, buf, len);
 
 	/* Buffer length plus one byte instruction. */
 	spi_transfer(DEV_ID, len + 1, 0);
+
+	sync_spinlock_unlock(&spi_lock);
 }
 
 /**
@@ -225,9 +280,13 @@ void mcp2515_read_rxb(uint8_t *buf, uint8_t len, uint8_t idx, uint8_t flag)
 	 */
 	uint8_t mask = (idx * 2) | flag;
 
+	sync_spinlock_lock(&spi_lock);
+
 	spi_dev->txbuf[0] = CMD_READ_RXB | mask;
 
 	spi_transfer(DEV_ID, 1, len);
 	memcpy(buf, spi_dev->rxbuf + 1, len);
+
+	sync_spinlock_unlock(&spi_lock);
 }
 
