@@ -25,10 +25,7 @@
 
 int run(void)
 {
-	int i = 0;
-	int len = 12;
 	int error = 0;
-	int checksum = 0;
 	struct can_id can_id;
 	struct can_frame tx, rx;
 
@@ -50,6 +47,8 @@ int run(void)
 	tx.data[3] = 0x05;
 	tx.data[4] = 0x04;
 	tx.data[5] = 0x03;
+	tx.data[6] = 0x02;
+	tx.data[7] = 0x01;
 
 	while (1) {
 		/* Send message */
@@ -58,7 +57,6 @@ int run(void)
 			error, tx.ident.id,
 			tx.data[0], tx.data[1], tx.data[2], tx.data[3],
 			tx.data[4], tx.data[5], tx.data[6], tx.data[7]);
-		udelay(10000);
 
 		tx.ident.id++;
 
@@ -68,7 +66,6 @@ int run(void)
 			error, rx.ident.id,
 			rx.data[0], rx.data[1], rx.data[2], rx.data[3],
 			rx.data[4], rx.data[5], rx.data[6], rx.data[7]);
-		udelay(10000);
 	}
 
 	return 0;
