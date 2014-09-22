@@ -70,7 +70,7 @@ read_callback(ps_chardevice_t* device, enum chardev_status stat,
     t->buf += bytes_transfered;
     if(t->cur_bytes < t->req_bytes){
         int ret;
-        ret = ps_cdev_read(&serial_device, t->buf, t->req_bytes - t->cur_bytes,
+        ret = ps_cdev_read(device, t->buf, t->req_bytes - t->cur_bytes,
                            &read_callback, token);
         if(ret < 0){
             printf("Error reading from UART\n");
