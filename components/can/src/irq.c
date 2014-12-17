@@ -18,6 +18,13 @@
 
 #include "can.h"
 
+/* Debug information level
+ *	0: no output
+ *	1: unexpected failures
+ *	2: all debug output
+ */
+#define DEBUG 2
+
 #define TXIF_MASK (CANINTF_TX0IF | CANINTF_TX1IF | CANINTF_TX2IF)
 #define RXIF_MASK (CANINTF_RX0IF | CANINTF_RX1IF)
 #define TXIF_SHF  2
@@ -35,7 +42,9 @@ static sync_spinlock_t txb_lock = 0;
  */
 static void report_message_error(void)
 {
+#if DEBUG > 0
 	printf("%s\n", __func__);
+#endif
 	enum op_mode mode;
 
 	mode = get_mode();
@@ -63,11 +72,14 @@ static void report_error(void)
 	flags = mcp2515_read_reg(EFLG);
 
 	if (flags & (EFLG_RX0OVR | EFLG_RX1OVR)) {
+#if DEBUG > 1
 		printf("CAN: Receive buffer overflow!\n");
+#endif
 		/* Overflow flags need to be cleared manually. */
 		mcp2515_bit_modify(EFLG, flags & (EFLG_RX0OVR | EFLG_RX1OVR), 0);
 	}
 
+#if DEBUG > 0
 	if (flags & EFLG_TXBO) {
 		printf("CAN: Enter Bus-off mode, too many errors.\n");
 	}
@@ -79,7 +91,9 @@ static void report_error(void)
 	if (flags & EFLG_TXEP) {
 		printf("CAN: Enter transmit error-passive mode.\n");
 	}
+#endif
 
+#if DEBUG > 1
 	if (flags & EFLG_TXWAR) {
 		printf("CAN: Transmit error warning.\n");
 	}
@@ -87,6 +101,7 @@ static void report_error(void)
 	if (flags & EFLG_RXWAR) {
 		printf("CAN: Receive error warning.\n");
 	}
+#endif
 
 	/* Clear interrupt flags */
 	mcp2515_bit_modify(CANINTF, CANINTF_ERRIF, 0);
@@ -147,10 +162,12 @@ static void receive_message(uint8_t rx)
 		ret += rx_queue_push(&frame);
 	}
 
+#if DEBUG > 1
 	/* If the RX queue is full, warn user. */
 	if (ret) {
 		printf("CAN: Drop %d message(s).\n", -ret);
 	}
+#endif
 
 	/* Clear interrupt flags */
 	mcp2515_bit_modify(CANINTF, rx, 0);
