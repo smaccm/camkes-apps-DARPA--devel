@@ -40,6 +40,7 @@ void clktree__init(void){
                                  NULL,
                                  NULL,
                                  NULL,
+				 NULL,
                                  &clock_sys);
     assert(!err);
     if(err){
