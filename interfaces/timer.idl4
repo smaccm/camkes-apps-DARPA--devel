@@ -9,6 +9,5 @@
  */
 
 procedure timer_inf {
-	int sleep_ms(in int cid, in int delayus);
-	unsigned int get (in unsigned int base);
+	int get_time();
 };

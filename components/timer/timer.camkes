@@ -11,12 +11,10 @@
 import "../../interfaces/timer.idl4"; 
 
 component timer {
-    	provides timer_inf 	timer;
         dataport Buf 		timerbase;
-        
-        uses	clk_inf 	clk;
-        
-        consumes DataAvailable timer1_init;
-        emits	IntEvent	client_sleep;
+        consumes DataAvailable  irq;
+
+    	provides timer_inf 	tm;
+	emits timer_evt         timer_update;
 }
 

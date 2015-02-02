@@ -17,6 +17,18 @@
 /* application common */
 #include "common.h"
 
+void timer_update_callback(void *arg)
+{
+	printf("Time up... %u!\n", *(unsigned int*)arg);
+	(*(unsigned int*)arg)++;
+
+	if (*(unsigned int*)arg == 10) {
+		printf("Enough, no more timer message...\n");
+	} else {
+		timer_update_reg_callback(timer_update_callback, arg);
+	}
+}
+
 int run(void)
 {
 	char str[] = "UART Test\n";
@@ -28,6 +40,8 @@ int run(void)
 	 * Timer test
 	 */
 	unsigned int cnt = 1;
+	timer_update_reg_callback(timer_update_callback, &cnt);
+
 
 	printf("Start UART Test\n");
 	char* buf = (char*) uart_buf;

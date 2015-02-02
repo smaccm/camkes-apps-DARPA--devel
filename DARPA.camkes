@@ -64,11 +64,11 @@ component spibase {
 	emits DataAvailable spi1_int;
 }
 
-/*component timerbase{
+component timerbase{
 	hardware;
 	dataport Buf timer_reg;
-	emits DataAvailable timer1_init;
-} */
+	emits DataAvailable irq;
+}
 
 /* ADL Routing */
 assembly {
@@ -79,7 +79,7 @@ assembly {
                 component gpiobase  gpiobase_obj;
                 component uartbase  uartbase_obj;
                 component spibase   spibase_obj;
-//                component timerbase timerbase_obj;
+                component timerbase timerbase_obj;
 //                component mshcbase mshcbase_obj;
                 
                 /* Add software component here */
@@ -91,7 +91,7 @@ assembly {
                 component can       can_obj;
                 component uart      uart_obj;
 		component gyro      gyro_obj;
-//               component timer	    timer_obj;
+                component timer	    timer_obj;
 //               component mmc	    mmc_obj;
                 /* Add driver to hardware connection here */
                 
@@ -105,7 +105,7 @@ assembly {
     		connection seL4HardwareMMIO gpio_mem3	(from gpio_obj.irqcbase, to gpiobase_obj.irqcbase);
     		
     			
-//                connection seL4HardwareMMIO timer_mem	(from timer_obj.timerbase, to timerbase_obj.timer_reg);
+                connection seL4HardwareMMIO timer_mem	(from timer_obj.timerbase, to timerbase_obj.timer_reg);
                 
                 connection seL4HardwareMMIO uart0_mem	(from uart_obj.uart0base, to uartbase_obj.uart0base);
 
@@ -123,7 +123,7 @@ assembly {
                 connection seL4HardwareInterrupt gpio_grp26_irq(from gpiobase_obj.irq_grp26_int, to gpio_obj.irq_grp26_int);
                 connection seL4HardwareInterrupt gpio_grp31_irq(from gpiobase_obj.irq_grp31_int, to gpio_obj.irq_grp31_int);
                 connection seL4HardwareInterrupt gpio_xint16_31_irq(from gpiobase_obj.xint16_31_int, to gpio_obj.xint16_31_int);
-//                connection seL4HardwareInterrupt timer_1_irq	(from timerbase_obj.timer1_init, to timer_obj.timer1_init);
+                connection seL4HardwareInterrupt timer_1_irq	(from timerbase_obj.irq, to timer_obj.irq);
                
  		/* Timer */
 //                connection seL4RPC timer_clk	(from timer_obj.clk, to clk_obj.clk);
@@ -144,7 +144,7 @@ assembly {
                 connection seL4RPC spi_gpio	(from spi_obj.gpio, to gpio_obj.gpio);
                 connection seL4RPC spi_clk	(from spi_obj.clktree, to clk_obj.clktree);
             	connection seL4RPC gyro_spi	(from gyro_obj.spi, 	to spi_obj.spi);
-//                connection seL4RPC client_timer (from client_obj.timer, to timer_obj.timer);
+                connection seL4RPC client_timer (from client_obj.timer, to timer_obj.tm);
               	
 		/* CAN Application */
             	connection seL4RPC canbus_spi	(from canbus_obj.spi, 	to spi_obj.spi);
@@ -159,7 +159,7 @@ assembly {
         	connection seL4Asynch 		gpio_can_intAck(from can_obj.IntAck, to gpio_obj.CANIntAck);
 
         	/* Timer Sleep/Wakeup funtions */
-//        	connection seL4Asynch		client_timer_sleep(from timer_obj.client_sleep, to client_obj.sleep);
+		connection seL4Asynch		client_timer_sleep(from timer_obj.timer_update, to client_obj.timer_update);
         		
         		
                 /* client shared data */
@@ -199,7 +199,7 @@ assembly {
               clkbase_obj.cmu_top_clk_attributes 	= 	"0x10020000:0x1000";	//CMU_TOP
         
               timerbase_obj.timer_reg_attributes 	= 	"0x12DD0000:0x1000";	//PWM timers   
-              timerbase_obj.timer1_init_attributes	= 	69;			//Timer 1 interrupt
+              timerbase_obj.irq_attributes	        = 	72;			//Timer interrupt
         	  
         	  
         	  /* MMC & mshc */

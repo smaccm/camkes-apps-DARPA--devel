@@ -68,5 +68,6 @@ uart_LIBS += platsupport
 gpio_LIBS += platsupport
 spi_LIBS += platsupport
 clk_LIBS += platsupport
+timer_LIBS += platsupport
 
 include ${PWD}/tools/camkes/camkes.mk

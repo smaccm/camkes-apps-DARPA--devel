@@ -19,11 +19,10 @@ import "../../interfaces/spi.idl4";
 component client {
         control;
         uses gpio_inf  	gpio;
-//        uses clk_inf   	clk;
         uses uart_inf  	uart;
         uses timer_inf	timer;
         dataport Buf	uart_buf;
-        consumes IntEvent	sleep;
+	consumes timer_evt timer_update;
 
 	uses spi_inf spi;
 	dataport Buf spi_client;
