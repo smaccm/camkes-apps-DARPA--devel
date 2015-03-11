@@ -155,11 +155,13 @@ static void receive_message(uint8_t rx)
 	if (rx & BIT(0)) {
 		recv_rxb(0, &frame);
 		ret += rx_queue_push(&frame);
+		queue_lock_post();
 	}
 
 	if (rx & BIT(1)) {
 		recv_rxb(1, &frame);
 		ret += rx_queue_push(&frame);
+		queue_lock_post();
 	}
 
 #if DEBUG > 1

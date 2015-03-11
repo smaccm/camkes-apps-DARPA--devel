@@ -20,6 +20,8 @@
 void can__init(void)
 {
 	printf("CAN device started...\n");
+
+	queue_lock_wait();
 	mq_init(MSG_QUEUE_SIZE);
 }
 
@@ -37,6 +39,7 @@ int can_setup(int baudrate)
 	set_baudrate(baudrate);
 	enable_intrrupt();
 
+//	enable_rollover();
 	set_mode(REQOP_NORMAL);
 
 	return 0;
@@ -54,7 +57,8 @@ void can_send(struct can_frame frame)
 
 void can_recv(struct can_frame *frame)
 {
-	while (rx_queue_pop(frame) == NULL);
+	queue_lock_wait(); // Wait for frame to be added
+	rx_queue_pop(frame);
 }
 
 int can_set_filter(struct can_id id, unsigned int mask)

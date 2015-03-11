@@ -20,5 +20,8 @@ component can {
 
 	consumes IntEvent 	Int;
 	emits 	IntEventAck IntAck;
+
+	has semaphore queue_lock;
+	has mutex     spi_lock;
 }
 
