@@ -273,6 +273,14 @@ enum op_mode get_mode(void)
 }
 
 /**
+ * Enable rollover
+ */
+void enable_rollover(void)
+{
+	mcp2515_bit_modify(RXBCTRL(0), RXBCTRL_BUKT, RXBCTRL_BUKT);
+}
+
+/**
  * Set RX buffer filter
  *
  * NOTE: Only works in configuration mode.
