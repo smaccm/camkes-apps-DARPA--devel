@@ -22,12 +22,10 @@
 #include "spi_inf.h"
 #include "common.h"
 
-
 int run(void)
 {
-	int error = 0;
-	struct can_id can_id;
 	struct can_frame tx, rx;
+	int start = 0, middle = 0, end = 0;
 
 	/* Initialize CAN controller. */
 	printf("Start CAN Loop-back Test\n");

@@ -193,7 +193,7 @@ assembly {
               
               spibase_obj.spi1_reg_attributes 		= 	"0x12D30000:0x1000";	//SPI1
               spibase_obj.spi1_int_attributes 		= 	101;			//SPI1  interrupt 
-			
+
               clkbase_obj.cmu_cpu_clk_attributes 	= 	"0x10010000:0x1000";	//CMU_CPU
               clkbase_obj.cmu_core_clk_attributes 	= 	"0x10014000:0x1000";	//CMU_CORE
               clkbase_obj.cmu_top_clk_attributes 	= 	"0x10020000:0x1000";	//CMU_TOP
