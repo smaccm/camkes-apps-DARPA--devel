@@ -171,8 +171,9 @@ static void receive_message(uint8_t rx)
 	}
 #endif
 
-	/* Clear interrupt flags */
-	mcp2515_bit_modify(CANINTF, rx, 0);
+	/* There is no need to clear the RX interrupt flag because the "Read RX
+	 * Buffer" instruction will clear it automatically.
+	 */
 }
 
 /**
