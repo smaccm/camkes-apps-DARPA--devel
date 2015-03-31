@@ -11,6 +11,5 @@
 config APP_DARPA
     bool "DARPA CAmkES application"
     default n 
-    select APP_CAMKES_EXECUTIVE
     help
         A simple application to demonstrate DARPA functionality.
