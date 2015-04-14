@@ -25,13 +25,13 @@
 int run(void)
 {
 	struct can_frame tx, rx;
-	int start = 0, middle = 0, end = 0;
+	int error = 0;
 
 	/* Initialize CAN controller. */
 	printf("Start CAN Loop-back Test\n");
 	can_setup(125000);
 
-	can_id.id = 0xF;
+//	can_id.id = 0xF;
 //	can_set_filter(can_id, 0xF);
 
 	/* Prepare CAN frame. */
