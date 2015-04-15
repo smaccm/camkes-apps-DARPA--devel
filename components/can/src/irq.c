@@ -121,7 +121,7 @@ static void transmit_message(uint8_t tx)
 	mcp2515_bit_modify(CANINTF, tx << TXIF_SHF, 0);
 
 	/* Load messages into empty TX buffers. */
-	for (int i = 0; i < TXB_NUM; i++) {
+	for (int i = TXB_NUM - 1; i >= 0; i--) {
 		if (tx & BIT(i)) {
 			if (tx_queue_pop(&frame)) {
 				/* Make sure the previous message is sent. */
