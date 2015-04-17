@@ -28,6 +28,17 @@ enum can_frame_priority {
 	HIGH
 };
 
+/**
+ * TX Buffer Status
+ */
+enum can_txb_status {
+	IDLE = 0,
+	PENDING,
+	LOST,
+	ERR,
+	ABORT
+};
+
 /** CAN Arbitration Field
  *
  * @id: CAN id(11 bits for standard frame, 29 bits if extended frame).

@@ -150,6 +150,10 @@ assembly {
             	connection seL4RPC canbus_spi	(from canbus_obj.spi, 	to spi_obj.spi);
                 connection seL4RPC canbus_can	(from canbus_obj.can, 	to can_obj.can);
                 connection seL4RPC canbus_gpio	(from canbus_obj.gpio, 	to gpio_obj.gpio);
+
+		connection seL4Asynch txb0_ack(from can_obj.txb0_ack, to canbus_obj.txb0_ack);
+		connection seL4Asynch txb1_ack(from can_obj.txb1_ack, to canbus_obj.txb1_ack);
+		connection seL4Asynch txb2_ack(from can_obj.txb2_ack, to canbus_obj.txb2_ack);
               
                	/* Can driver */
             	connection seL4RPC 		can_spi(from can_obj.spi, to spi_obj.spi);

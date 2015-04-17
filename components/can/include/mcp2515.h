@@ -34,6 +34,7 @@
 #define TXBCTRL_TXERR    BIT(4) //Transmission error detected
 #define TXBCTRL_TXREQ    BIT(3) //Message transmit request
 #define TXBCTRL_TXP_SHF  0      //Transmit buffer priority
+#define TXBCTRL_TXP_MASK 0x3    //Transmit buffer priority mask
 
 /* Receive Buffers */
 #define RXBCTRL(n)  ((((n) + 0x6) << 4)) //Control register
@@ -170,9 +171,15 @@ void recv_rxb(int rxb_idx, struct can_frame *frame);
 int set_rx_filter(struct can_id can_id, uint32_t mask);
 void clear_rx_filter(uint8_t idx);
 void clear_filter_mask(uint8_t rxb_idx);
+void abort_tx(int txb_idx);
+int txb_status(int txb_idx);
 
 /* Interrupt functions */
 void enable_intrrupt(void);
 void start_xmit(void);
+
+/* Caching functions */
+void canid_clear_cache(int txb_idx);
+int get_frame_priority(int txb_idx, struct can_id *id);
 
 #endif

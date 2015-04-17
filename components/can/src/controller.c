@@ -422,7 +422,7 @@ void load_txb(int txb_idx, struct can_frame *frame)
 	mcp2515_load_txb(buf, frame->dlc + DAT, txb_idx, 0);
 
 	/* Set TX buffer priority. */
-	mcp2515_write_reg(TXBCTRL(txb_idx), frame->prio);
+	mcp2515_bit_modify(TXBCTRL(txb_idx), TXBCTRL_TXP_MASK, frame->prio);
 }
 
 /**
@@ -464,3 +464,40 @@ void recv_rxb(int rxb_idx, struct can_frame *frame)
 	/* Copy in payload */
 	memcpy(frame->data, buf + DAT, frame->dlc);
 }
+
+/**
+ * Aborting transmission
+ *
+ * @txb_idx: TX buffer identifier.
+ */
+void abort_tx(int txb_idx)
+{
+	mcp2515_bit_modify(TXBCTRL(txb_idx), TXBCTRL_TXREQ, 0);
+}
+
+/**
+ * TX buffer status
+ *
+ * @txb_idx: TX buffer identifier.
+ */
+int txb_status(int txb_idx)
+{
+	uint8_t status = mcp2515_read_reg(TXBCTRL(txb_idx));
+
+	if (status & TXBCTRL_TXREQ) {
+		if (status & TXBCTRL_MLOA) {
+			status = LOST;
+		} else if (status & TXBCTRL_TXERR) {
+			status = ERR;
+		} else if (status & TXBCTRL_ABTF) {
+			status = ABORT;
+		} else {
+			status = PENDING;
+		}
+	} else {
+		status = IDLE;
+	}
+
+	return status;
+}
+

@@ -18,5 +18,9 @@ component canbus {
         uses gpio_inf	gpio;
         dataport Buf	spi1_client;
         dataport Buf	can_buf;
+
+	consumes txb0_ack  txb0_ack;
+	consumes txb1_ack  txb1_ack;
+	consumes txb2_ack  txb2_ack;
 }
 

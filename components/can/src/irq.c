@@ -123,6 +123,21 @@ static void transmit_message(uint8_t tx)
 	/* Load messages into empty TX buffers. */
 	for (int i = TXB_NUM - 1; i >= 0; i--) {
 		if (tx & BIT(i)) {
+			canid_clear_cache(i);
+			switch (i) {
+				case 0:
+					txb0_ack_emit();
+					break;
+				case 1:
+					txb1_ack_emit();
+					break;
+				case 2:
+					txb2_ack_emit();
+					break;
+				default:
+					break;
+			}
+
 			if (tx_queue_pop(&frame)) {
 				/* Make sure the previous message is sent. */
 				while (mcp2515_read_reg(TXBCTRL(i) & TXBCTRL_TXREQ));
@@ -133,7 +148,6 @@ static void transmit_message(uint8_t tx)
 				sync_spinlock_lock(&txb_lock);
 				xmit_stopped = 1;
 				sync_spinlock_unlock(&txb_lock);
-				break;
 			}
 		}
 	}

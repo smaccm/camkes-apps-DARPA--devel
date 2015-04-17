@@ -11,8 +11,11 @@
 procedure can_inf {
 	include "include/can_inf.h";
 	int setup(in int baudrate);
+	int sendto(in int txb_idx, in can_frame_t frame);
 	void send(in can_frame_t frame);
 	void recv(out can_frame_t frame);
+	void abort(in int txb_idx);
+	int status(in int txb_idx);
 	int set_filter(in can_id_t ident, in unsigned int mask);
 	void clear_filter(in int filter_id);
 	void disable_filtering(void);
