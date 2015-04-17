@@ -22,10 +22,32 @@
 #include "spi_inf.h"
 #include "common.h"
 
+void txb0_ack_callback(void *arg)
+{
+	txb0_ack_reg_callback(txb0_ack_callback, NULL);
+	printf("%s\n", __func__);
+}
+
+void txb1_ack_callback(void *arg)
+{
+	txb1_ack_reg_callback(txb1_ack_callback, NULL);
+	printf("%s\n", __func__);
+}
+
+void txb2_ack_callback(void *arg)
+{
+	txb2_ack_reg_callback(txb2_ack_callback, NULL);
+	printf("%s\n", __func__);
+}
+
 int run(void)
 {
 	struct can_frame tx, rx;
 	int error = 0;
+
+	error = txb0_ack_reg_callback(txb0_ack_callback, NULL);
+	error = txb1_ack_reg_callback(txb1_ack_callback, NULL);
+	error = txb2_ack_reg_callback(txb2_ack_callback, NULL);
 
 	/* Initialize CAN controller. */
 	printf("Start CAN Loop-back Test\n");
@@ -50,20 +72,40 @@ int run(void)
 
 	while (1) {
 		/* Send message */
-		can_send(tx);
-		printf("Send: error(%d), id(%x), data(%x, %x, %x, %x, %x, %x, %x, %x)\n",
-			error, tx.ident.id,
-			tx.data[0], tx.data[1], tx.data[2], tx.data[3],
-			tx.data[4], tx.data[5], tx.data[6], tx.data[7]);
+//		can_send(tx);
+		tx.ident.id = 0x300;
+		error = can_sendto(0, tx);
+		if (error) {
+			can_abort(0);
+			printf("Send error: 0\n");
+		}
 
-		tx.ident.id++;
+		tx.ident.id = 0x100;
+		error = can_sendto(1, tx);
+		if (error) {
+			can_abort(1);
+			printf("Send error: 1\n");
+		}
+
+		tx.ident.id = 0x200;
+		error = can_sendto(2, tx);
+		if (error) {
+			can_abort(2);
+			printf("Send error: 2\n");
+		}
+//		printf("Send: error(%d), id(%x), data(%x, %x, %x, %x, %x, %x, %x, %x)\n",
+//			error, tx.ident.id,
+//			tx.data[0], tx.data[1], tx.data[2], tx.data[3],
+//			tx.data[4], tx.data[5], tx.data[6], tx.data[7]);
+//
+//		tx.ident.id++;
 
 		/* Receive message */
-		can_recv(&rx);
-		printf("Recv: error(%d), id(%x), data(%x, %x, %x, %x, %x, %x, %x, %x)\n",
-			error, rx.ident.id,
-			rx.data[0], rx.data[1], rx.data[2], rx.data[3],
-			rx.data[4], rx.data[5], rx.data[6], rx.data[7]);
+//		can_recv(&rx);
+//		printf("Recv: error(%d), id(%x), data(%x, %x, %x, %x, %x, %x, %x, %x)\n",
+//			error, rx.ident.id,
+//			rx.data[0], rx.data[1], rx.data[2], rx.data[3],
+//			rx.data[4], rx.data[5], rx.data[6], rx.data[7]);
 	}
 
 	return 0;
