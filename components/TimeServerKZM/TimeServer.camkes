@@ -14,6 +14,8 @@ import <TimeServerEPIT/TimeServerEPIT.camkes>;
 
 import <Timer.idl4>;
 
+#define EPIT_IRQ 27
+
 component TimeServerKZM {
     provides Timer the_timer;
     emits Notification timer_notification;
@@ -30,7 +32,8 @@ component TimeServerKZM {
     }
     configuration {
         timer_hw.timer_reg_attributes = "0x53F98000:0x1000";    //KZM timers
-        timer_hw.irq_attributes = 27;  //Timer interrupt
+        timer_hw.irq_attributes = EPIT_IRQ;  //Timer interrupt
+	time_server.epit_irq = EPIT_IRQ;
         time_server.timers_per_client = 6;
 
 /*

@@ -8,8 +8,8 @@
 # @TAG(NICTA_GPL)
 #
 
-apps-$(CONFIG_APP_TIMER)    += timer 
-
-timer: common libsel4 libmuslc libsel4vka libsel4muslcsys \
-libsel4utils libutils libsel4camkes libsel4sync libsel4debug libsel4muslccamkes libplatsupport 
-
+menuconfig APP_TIMER_KZM
+    bool "KZM Timer test application"
+    default n
+    help 
+        Application to test the TimeServer component on KZM.

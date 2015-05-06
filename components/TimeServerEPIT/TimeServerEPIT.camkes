@@ -39,6 +39,7 @@ component TimeServerEPIT {
     consumes DataAvailable irq;
 
     attribute int timers_per_client;
+    attribute int epit_irq;
 }
 
 /*

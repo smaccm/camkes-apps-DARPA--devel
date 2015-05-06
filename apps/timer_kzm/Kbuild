@@ -8,8 +8,8 @@
 # @TAG(NICTA_GPL)
 #
 
-menuconfig APP_TIMER
-    bool "Timer test application"
-    default n
-    help 
-        Application to test the TimeServer component.
+apps-$(CONFIG_APP_TIMER_KZM)    += timer_kzm 
+
+timer_kzm: common libsel4 libmuslc libsel4vka libsel4muslcsys \
+libsel4utils libutils libsel4camkes libsel4sync libsel4debug libsel4muslccamkes libplatsupport 
+
