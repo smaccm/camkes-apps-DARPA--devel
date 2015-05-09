@@ -13,4 +13,5 @@ import <Timer.idl4>;
 component TimeClient {
     uses Timer timer;
     consumes Notification timer_complete;
+    attribute string msg;
 }

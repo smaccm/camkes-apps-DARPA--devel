@@ -19,6 +19,6 @@ void post_init() {
 
 void timer_complete_callback() {
     /* do nothing with the timer tick */
-    printf("timer ticked\n");
-    printf("time is: %llu\n", timer_time());
+    printf("%s timer ticked\n", msg);
+    printf("%s time is: %llu\n", msg, timer_time());
 }
