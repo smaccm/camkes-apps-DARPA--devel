@@ -50,12 +50,13 @@
 #include "can.h"
 
 /* Macros for juggling TXB/RXB registers. */
-#define SIDH_SHF      3
-#define SIDL_SHF      5
-#define EXIDE_SHF     3
-#define SIDL_EID_SHF  16
-#define EID8_SHF      8
-#define RTR_SHF       6
+#define SIDH_SHF      3   //SIDH = SID<10:3>
+#define SIDL_SHF      5   //SIDL bit 7-5 = SID<2:0>
+#define EXIDE_SHF     3   //EID flag bit
+#define SIDL_EID_MASK 0x3 //SIDL bit 1-0 = EID<17:16>
+#define SIDL_EID_SHF  16  //SIDL bit 1-0 = EID<17:16>
+#define EID8_SHF      8   //EID8 = EID<15:8>
+#define RTR_SHF       6   //Remote Transmission Request bit
 
 #define BYTE_MASK    0xFF
 #define MAX_BUF_LEN  13   //Maximum length of a CAN frame.
@@ -281,6 +282,21 @@ void enable_rollover(void)
 }
 
 /**
+ * Set RX buffer operating mode
+ *
+ * @rxb_idx: RX buffer index(0 -- RXB0, 1 -- RXB1)
+ */
+void set_rx_mode(int rxb_idx, enum rxm_mode mode)
+{
+	if (rxb_idx > 1) {
+		printf("CAN: Invalid RXB%d\n", rxb_idx);
+		return;
+	}
+
+	mcp2515_bit_modify(RXBCTRL(rxb_idx), RXBCTRL_RXM_MASK, mode << RXBCTRL_RXM_SHF);
+}
+
+/**
  * Set RX buffer filter
  *
  * NOTE: Only works in configuration mode.
@@ -447,7 +463,8 @@ void recv_rxb(int rxb_idx, struct can_frame *frame)
 	/* See if it is an extended frame */
 	frame->ident.exide = buf[SIDL] >> EXIDE_SHF;
 	if (frame->ident.exide) {
-		eid = buf[SIDL] << SIDL_EID_SHF | buf[EID8] << EID8_SHF | buf[EID0];
+		eid = (buf[SIDL] & SIDL_EID_MASK) << SIDL_EID_SHF
+		      | buf[EID8] << EID8_SHF | buf[EID0];
 		frame->ident.id = sid << CAN_EID_BITS | eid;
 	} else {
 		frame->ident.id = sid;

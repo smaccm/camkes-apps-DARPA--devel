@@ -40,6 +40,7 @@ int can_setup(int baudrate)
 	enable_intrrupt();
 
 //	enable_rollover();
+	set_rx_mode(0, RXM_ANY);
 	set_mode(REQOP_NORMAL);
 
 	return 0;
@@ -96,6 +97,11 @@ int can_set_filter(struct can_id id, unsigned int mask)
 
 	ret = set_rx_filter(id, mask);
 
+	set_rx_mode(0, RXM_BOTH);
+
+	/* TODO: Check if rollover is on */
+	set_rx_mode(1, RXM_BOTH);
+
 	set_mode(REQOP_NORMAL);
 
 	return ret;
@@ -115,6 +121,11 @@ void can_disable_filtering(void)
 	set_mode(REQOP_CONFIG);
 
 	clear_filter_mask(2);
+
+	set_rx_mode(0, RXM_ANY);
+
+	/* TODO: Check if rollover is on */
+	set_rx_mode(1, RXM_ANY);
 
 	set_mode(REQOP_NORMAL);
 }

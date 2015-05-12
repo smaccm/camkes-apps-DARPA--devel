@@ -46,9 +46,9 @@
 
 /* Receive Buffer Filters */
 #define RXFSIDH(n)  ((n) << 2)        //Filter standard identifier high
-#define RXFSIDL(n)  (RXF0SIDH(n) + 1) //Filter standard identifier low
-#define RXFEID8(n)  (RXF0SIDH(n) + 2) //Filter extended identifier high
-#define RXFEID0(n)  (RXF0SIDH(n) + 3) //Filter extended identifier low
+#define RXFSIDL(n)  (RXFSIDH(n) + 1)  //Filter standard identifier low
+#define RXFEID8(n)  (RXFSIDH(n) + 2)  //Filter extended identifier high
+#define RXFEID0(n)  (RXFSIDH(n) + 3)  //Filter extended identifier low
 
 #define RXMSIDH(n)  (((n) << 2) + 0x20) //Mask standard identifier high
 #define RXMSIDL(n)  (RXMSIDH(n) + 1)    //Mask standard identifier low
@@ -56,10 +56,12 @@
 #define RXMEIDL(n)  (RXMSIDH(n) + 3)    //Mask extended identifier low
 
 /* Receive Buffer Control Bits */
-#define RXBCTRL_RXM_SHF     BIT(5) //Operating mode
+#define RXBCTRL_RXM_MASK    0x60   //Receive buffer operating mode mask
+#define RXBCTRL_RXM_SHF     5      //Operating mode bit shift
 #define RXBCTRL_RTR         BIT(3) //Received remote transfer request
 #define RXBCTRL_BUKT        BIT(2) //Rollover enable
-#define RXBCTRL_FILHIT_SHF  BIT(0) //Filter bit
+#define RXBCTRL_FILHIT_MASK 0x7    //Filter bit mask
+#define RXBCTRL_FILHIT_SHF  0      //Filter bit shift
 
 /* Control Registers */
 #define CANSTAT  0xE //CAN controller state
@@ -137,7 +139,18 @@
 #define CMD_RX_STATUS     0xB0 //RX status
 #define CMD_BIT_MODIFY    0x05 //Set or clear individual bits in a particular register
 
-/*
+/**
+ * Receive Buffer Operating Mode
+ * Note: Do *NOT* change the values of these modes.
+ */
+enum rxm_mode {
+	RXM_BOTH = 0,  //Receive all messages, filters enabled
+	RXM_SID_ONLY,  //Receive only messages with standard ID
+	RXM_EID_ONLY,  //Receive only messages with extended ID
+	RXM_ANY        //Receive any messages, turn off masks/filters
+};
+
+/**
  * Modes of Operation
  * Note: Do *NOT* change the order of those modes.
  */
@@ -173,6 +186,8 @@ void clear_rx_filter(uint8_t idx);
 void clear_filter_mask(uint8_t rxb_idx);
 void abort_tx(int txb_idx);
 int txb_status(int txb_idx);
+void enable_rollover(void);
+void set_rx_mode(int rxb_idx, enum rxm_mode mode);
 
 /* Interrupt functions */
 void enable_intrrupt(void);
