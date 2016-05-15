@@ -64,10 +64,4 @@ gyro_CFILES := \
 #mmc_CFILES := \
 #    $(patsubst ${SOURCE_DIR}/%,%,$(wildcard ${SOURCE_DIR}/components/mmc/src/*.c))
 
-uart_LIBS += platsupport
-gpio_LIBS += platsupport
-spi_LIBS += platsupport
-clk_LIBS += platsupport
-timer_LIBS += platsupport
-
 include ${PWD}/tools/camkes/camkes.mk
