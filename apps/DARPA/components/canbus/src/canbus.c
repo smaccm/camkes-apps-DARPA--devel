@@ -12,6 +12,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdbool.h>
+#include <utils/util.h>
 
 #include "utils.h"
 
@@ -42,7 +43,7 @@ void txb2_ack_callback(void *arg)
 
 int run(void)
 {
-	struct can_frame tx, rx;
+	struct can_frame tx, rx UNUSED;
 	int error = 0;
 
 	error = txb0_ack_reg_callback(txb0_ack_callback, NULL);

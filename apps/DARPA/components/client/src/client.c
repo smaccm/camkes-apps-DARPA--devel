@@ -32,9 +32,6 @@ void timer_update_callback(void *arg)
 int run(void)
 {
 	char str[] = "UART Test\n";
-	int i = 0;
-	int len = 12;
-	int error = 0;
 
 	/*
 	 * Timer test
@@ -45,10 +42,8 @@ int run(void)
 
 	printf("Start UART Test\n");
 	char* buf = (char*) uart_buf;
-	int rcount = 0;
-	int wcount = 0;
 	strcpy(buf,str);
-	wcount = uart_write(0, 15);
+	uart_write(0, 15);
 	while(1){
 		uart_read(0,10);
 		printf("read: %s\n",buf);
