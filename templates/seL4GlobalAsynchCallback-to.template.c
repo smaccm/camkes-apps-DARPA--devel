@@ -17,17 +17,17 @@
 /*- set instance = me.to_instance.name -*/
 /*- set interface = me.to_interface.name -*/
 /*- include 'global-endpoint.template.c' -*/
-/*- set aep = pop('aep') -*/
+/*- set notification = pop('notification') -*/
 
 void /*? me.to_interface.name ?*/_callback(void);
 
 void /*? me.to_interface.name ?*/__run(void) {
     while(1) {
-        seL4_Wait(/*? aep ?*/, NULL);
+        seL4_Wait(/*? notification ?*/, NULL);
         /*? me.to_interface.name ?*/_callback();
     }
 }
 
-seL4_CPtr /*? me.to_interface.name ?*/_aep(void) {
-    return /*? aep ?*/;
+seL4_CPtr /*? me.to_interface.name ?*/_notification(void) {
+    return /*? notification ?*/;
 }
