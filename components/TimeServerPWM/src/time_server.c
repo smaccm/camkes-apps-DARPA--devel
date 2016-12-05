@@ -15,7 +15,7 @@
 #include <stdio.h>
 #include <sel4/sel4.h>
 #include <sel4/arch/constants.h>
-#include <TimeServerPWM.h>
+#include <camkes.h>
 #include <platsupport/mach/pwm.h> //IK
 #include <platsupport/timer.h> //IK
 #include <utils/math.h>
