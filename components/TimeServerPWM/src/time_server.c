@@ -128,12 +128,12 @@ static void signal_clients(uint64_t current_time) {
     }
 }
 
-static void timer_interrupt(void *cookie) {
+void irq_handle(void) {
     time_server_lock();
     update_current_time_ns(TIMER_PERIOD);
     signal_clients(current_time_ns());
     timer_handle_irq(timer, 0);
-    irq_reg_callback(timer_interrupt, cookie);
+    irq_acknowledge();
     time_server_unlock();
 }
 
@@ -270,7 +270,7 @@ void post_init() {
     config.vaddr = (void*)timer_reg;
     timer = pwm_get_timer(&config);
     assert(timer);
-    irq_reg_callback(timer_interrupt, NULL);
+    irq_acknowledge();
     /* start timer */
     timer_start(timer);
     timer_periodic(timer, TIMER_PERIOD);
