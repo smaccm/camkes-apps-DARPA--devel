@@ -27,12 +27,15 @@ component TimeServerKZM {
         connection seL4HardwareMMIO timer_mem (from time_server.timer_reg, to timer_hw.timer_reg);
         connection seL4HardwareInterrupt timer_1_irq (from timer_hw.irq, to time_server.irq);
 
-        connection ExportRPC export_timer_kzm(from the_timer, to time_server.the_timer);
-        connection ExportAsynch export_timer_notify_kzm(from time_server.timer_notification, to timer_notification);
+	export time_server.timer_notification -> timer_notification;
+	export time_server.the_timer -> the_timer;
+        //connection ExportRPC export_timer_kzm(from the_timer, to time_server.the_timer);
+        //connection ExportAsynch export_timer_notify_kzm(from time_server.timer_notification, to timer_notification);
     }
     configuration {
-        timer_hw.timer_reg_attributes = "0x53F98000:0x1000";    //KZM timers
-        timer_hw.irq_attributes = EPIT_IRQ;  //Timer interrupt
+        timer_hw.timer_reg_paddr = 0x53F98000;    //KZM timers
+        timer_hw.timer_reg_size = 0x1000;    //KZM timers
+        timer_hw.irq_irq_number = EPIT_IRQ;  //Timer interrupt
 	time_server.epit_irq = EPIT_IRQ;
         time_server.timers_per_client = 6;
 
