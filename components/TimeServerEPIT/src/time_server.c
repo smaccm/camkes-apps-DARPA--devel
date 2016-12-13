@@ -15,7 +15,7 @@
 #include <stdio.h>
 #include <sel4/sel4.h>
 #include <sel4/arch/constants.h>
-#include <TimeServerEPIT.h>
+#include <camkes.h>
 #include <platsupport/mach/epit.h> //IK
 #include <platsupport/timer.h> //IK
 #include <utils/math.h>
@@ -130,12 +130,12 @@ static void signal_clients(uint64_t current_time) {
     }
 }
 
-static void timer_interrupt(void *cookie) {
+void irq_handle(void) {
     time_server_lock();
     update_current_time_ns(TIMER_PERIOD);
     signal_clients(current_time_ns());
     timer_handle_irq(timer, EPIT_IRQ);
-    irq_reg_callback(timer_interrupt, cookie);
+    irq_acknowledge();
     time_server_unlock();
 }
 
@@ -274,7 +274,7 @@ void post_init() {
     config.prescaler = 0;
     timer = epit_get_timer(&config);
     assert(timer);
-    irq_reg_callback(timer_interrupt, NULL);
+    irq_acknowledge();
     /* start timer */
     timer_start(timer);
     timer_periodic(timer, TIMER_PERIOD);
